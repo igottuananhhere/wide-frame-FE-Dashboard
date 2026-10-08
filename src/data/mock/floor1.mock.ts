@@ -1,0 +1,177 @@
+import type { FloorRoomSnapshot, SchematicRoomGeometry } from "../../features/floor/types";
+import { ACTIVE_FLOOR_ID } from "./buildingLocations";
+
+/** Mock telemetry for the ICS Headquarters Floor 1 POC. */
+export const floor1Rooms: readonly FloorRoomSnapshot[] = [
+  {
+    id: "room-lobby-01",
+    floorId: ACTIVE_FLOOR_ID,
+    name: "Sảnh",
+    status: "normal",
+    temperature: 25.2,
+    humidity: 54,
+    energyConsumption: 8.4,
+    deviceCount: 2,
+    onlineDeviceCount: 2,
+    offlineDeviceCount: 0,
+  },
+  {
+    id: "room-workspace-01",
+    floorId: ACTIVE_FLOOR_ID,
+    name: "Khu làm việc",
+    status: "warning",
+    temperature: 25.6,
+    humidity: 58,
+    energyConsumption: 48.6,
+    deviceCount: 12,
+    onlineDeviceCount: 11,
+    offlineDeviceCount: 1,
+  },
+  {
+    id: "room-server-01",
+    floorId: ACTIVE_FLOOR_ID,
+    name: "Server Room",
+    status: "normal",
+    temperature: 25.4,
+    humidity: 61,
+    energyConsumption: 23.4,
+    deviceCount: 4,
+    onlineDeviceCount: 4,
+    offlineDeviceCount: 0,
+  },
+  {
+    id: "room-corridor-01",
+    floorId: ACTIVE_FLOOR_ID,
+    name: "Corridor",
+    status: "normal",
+    temperature: 25.4,
+    humidity: 56,
+    energyConsumption: 5.1,
+    deviceCount: 1,
+    onlineDeviceCount: 1,
+    offlineDeviceCount: 0,
+  },
+  {
+    id: "room-meeting-01",
+    floorId: ACTIVE_FLOOR_ID,
+    name: "Meeting Room 01",
+    status: "normal",
+    temperature: 24.9,
+    humidity: 57,
+    energyConsumption: 7.2,
+    deviceCount: 2,
+    onlineDeviceCount: 2,
+    offlineDeviceCount: 0,
+  },
+  {
+    id: "room-meeting-02",
+    floorId: ACTIVE_FLOOR_ID,
+    name: "Meeting Room 02",
+    status: "normal",
+    temperature: 25.8,
+    humidity: 62,
+    energyConsumption: 6.8,
+    deviceCount: 3,
+    onlineDeviceCount: 3,
+    offlineDeviceCount: 0,
+  },
+  {
+    id: "room-pantry-01",
+    floorId: ACTIVE_FLOOR_ID,
+    name: "Pantry",
+    status: "normal",
+    temperature: 25.3,
+    humidity: 55,
+    energyConsumption: 4.6,
+    deviceCount: 1,
+    onlineDeviceCount: 1,
+    offlineDeviceCount: 0,
+  },
+  {
+    id: "room-utility-01",
+    floorId: ACTIVE_FLOOR_ID,
+    name: "Utility Room",
+    status: "offline",
+    temperature: 26.2,
+    humidity: 60,
+    energyConsumption: 21.5,
+    deviceCount: 1,
+    onlineDeviceCount: 0,
+    offlineDeviceCount: 1,
+  },
+];
+
+/**
+ * Schematic-only floor geometry. It is deliberately separate from telemetry so a surveyed
+ * SVG/CAD-derived layout can replace this array without changing room data or interactions.
+ */
+export const floor1SchematicGeometry: readonly SchematicRoomGeometry[] = [
+  {
+    roomId: "room-lobby-01",
+    boundary: [{ x: 58, y: 55 }, { x: 250, y: 55 }, { x: 250, y: 230 }, { x: 58, y: 230 }],
+    label: { x: 154, y: 105 },
+    fixtures: [
+      { kind: "counter", x: 82, y: 174, width: 80, height: 22 },
+      { kind: "meeting-table", x: 180, y: 170, width: 42, height: 28 },
+    ],
+  },
+  {
+    roomId: "room-workspace-01",
+    boundary: [{ x: 270, y: 55 }, { x: 820, y: 55 }, { x: 820, y: 230 }, { x: 270, y: 230 }],
+    label: { x: 545, y: 105 },
+    fixtures: [
+      { kind: "workstation", x: 330, y: 164, width: 98, height: 24 },
+      { kind: "workstation", x: 458, y: 164, width: 98, height: 24 },
+      { kind: "workstation", x: 586, y: 164, width: 98, height: 24 },
+      { kind: "workstation", x: 330, y: 198, width: 98, height: 20 },
+      { kind: "workstation", x: 458, y: 198, width: 98, height: 20 },
+      { kind: "workstation", x: 586, y: 198, width: 98, height: 20 },
+    ],
+  },
+  {
+    roomId: "room-server-01",
+    boundary: [{ x: 840, y: 55 }, { x: 1142, y: 55 }, { x: 1142, y: 230 }, { x: 840, y: 230 }],
+    label: { x: 991, y: 105 },
+    fixtures: [
+      { kind: "server-rack", x: 875, y: 177, width: 52, height: 38 },
+      { kind: "server-rack", x: 940, y: 177, width: 52, height: 38 },
+      { kind: "server-rack", x: 1005, y: 177, width: 52, height: 38 },
+    ],
+  },
+  {
+    roomId: "room-corridor-01",
+    boundary: [
+      { x: 58, y: 250 }, { x: 1142, y: 250 }, { x: 1142, y: 395 },
+      { x: 840, y: 395 }, { x: 840, y: 420 }, { x: 700, y: 420 },
+      { x: 700, y: 395 }, { x: 58, y: 395 },
+    ],
+    label: { x: 556, y: 307 },
+  },
+  {
+    roomId: "room-meeting-01",
+    boundary: [{ x: 58, y: 438 }, { x: 260, y: 438 }, { x: 260, y: 605 }, { x: 58, y: 605 }],
+    label: { x: 159, y: 475 },
+    fixtures: [{ kind: "meeting-table", x: 96, y: 545, width: 126, height: 34 }],
+  },
+  {
+    roomId: "room-meeting-02",
+    boundary: [{ x: 280, y: 438 }, { x: 502, y: 438 }, { x: 502, y: 605 }, { x: 280, y: 605 }],
+    label: { x: 391, y: 475 },
+    fixtures: [{ kind: "meeting-table", x: 324, y: 545, width: 134, height: 34 }],
+  },
+  {
+    roomId: "room-pantry-01",
+    boundary: [{ x: 522, y: 438 }, { x: 698, y: 438 }, { x: 698, y: 605 }, { x: 522, y: 605 }],
+    label: { x: 610, y: 475 },
+    fixtures: [{ kind: "counter", x: 552, y: 545, width: 116, height: 32 }],
+  },
+  {
+    roomId: "room-utility-01",
+    boundary: [{ x: 840, y: 438 }, { x: 1142, y: 438 }, { x: 1142, y: 605 }, { x: 840, y: 605 }],
+    label: { x: 991, y: 475 },
+    fixtures: [
+      { kind: "server-rack", x: 900, y: 545, width: 64, height: 38 },
+      { kind: "server-rack", x: 980, y: 545, width: 64, height: 38 },
+    ],
+  },
+];
