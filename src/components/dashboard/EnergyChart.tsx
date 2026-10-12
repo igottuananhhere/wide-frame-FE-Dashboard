@@ -47,28 +47,40 @@ export default function EnergyChart({ data, source, scopeLabel, sampleDate, scop
         <div className="energy-chart" role="img" aria-label={ariaLabel}>
           <ResponsiveContainer width="100%" height="100%">
             <LineChart data={chartData} margin={{ top: 10, right: 12, bottom: 8, left: 8 }}>
-              <CartesianGrid stroke="rgba(160, 188, 205, 0.13)" strokeDasharray="3 5" vertical={false} />
+              <CartesianGrid stroke="var(--color-chart-grid, rgba(160, 188, 205, 0.13))" strokeDasharray="3 5" vertical={false} />
               <XAxis
                 dataKey="time"
                 axisLine={false}
                 tickLine={false}
-                tick={{ fill: "#b5c6d3", fontSize: 10 }}
+                tick={{ fill: "var(--color-chart-tick, #b5c6d3)", fontSize: 10 }}
                 minTickGap={24}
-                label={{ value: "Giờ", position: "insideBottomRight", offset: -4, fill: "#b5c6d3", fontSize: 9 }}
+                label={{ value: "Giờ", position: "insideBottomRight", offset: -4, fill: "var(--color-chart-tick, #b5c6d3)", fontSize: 9 }}
               />
               <YAxis
                 axisLine={false}
                 tickLine={false}
-                tick={{ fill: "#b5c6d3", fontSize: 10 }}
+                tick={{ fill: "var(--color-chart-tick, #b5c6d3)", fontSize: 10 }}
                 tickFormatter={(value: number) => `${value}`}
-                label={{ value: "kWh lũy kế", angle: -90, position: "insideLeft", fill: "#b5c6d3", fontSize: 9 }}
+                label={{ value: "kWh lũy kế", angle: -90, position: "insideLeft", fill: "var(--color-chart-tick, #b5c6d3)", fontSize: 9 }}
               />
               <Tooltip
-                contentStyle={{ border: "1px solid #30485d", borderRadius: 8, background: "#0c1b29", color: "#f4f8fb" }}
-                labelStyle={{ color: "#c4d2de" }}
+                contentStyle={{
+                  border: "1px solid var(--color-chart-tooltip-border, #30485d)",
+                  borderRadius: 8,
+                  background: "var(--color-chart-tooltip-bg, #0c1b29)",
+                  color: "var(--color-chart-tooltip-text, #f4f8fb)",
+                }}
+                labelStyle={{ color: "var(--color-chart-tooltip-label, #c4d2de)" }}
                 formatter={(value) => [`${value} kWh`, "Điện năng lũy kế"]}
               />
-              <Line type="monotone" dataKey="kwh" stroke="#42d7ee" strokeWidth={2.5} dot={false} activeDot={{ r: 4, fill: "#42d7ee", stroke: "#102a39", strokeWidth: 2 }} />
+              <Line
+                type="monotone"
+                dataKey="kwh"
+                stroke="var(--color-chart-line, #42d7ee)"
+                strokeWidth={2.5}
+                dot={false}
+                activeDot={{ r: 4, fill: "var(--color-chart-line, #42d7ee)", stroke: "var(--color-chart-dot-stroke, #102a39)", strokeWidth: 2 }}
+              />
             </LineChart>
           </ResponsiveContainer>
         </div>

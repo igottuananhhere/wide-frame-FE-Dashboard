@@ -20,13 +20,22 @@ const relativeTime = (timestamp: number, now: number): string => {
   return `${Math.floor(hours / 24)} ngày trước`;
 };
 
+const getAttentionRank = (alert: TwinAlert): number => {
+  const isCritical = alert.kind === "critical" || alert.severity === "critical";
+  const isMaintenance = alert.kind === "maintenance";
+  const isActive = alert.status === "active";
+
+  if (isCritical) return isActive ? 0 : 1;
+  if (isMaintenance) return isActive ? 4 : 5;
+  return isActive ? 2 : 3;
+};
+
 export function buildAttentionQueue(alerts: readonly TwinAlert[], now = Date.now()): AttentionEntry[] {
-  const priority = { critical: 0, warning: 1, maintenance: 2 } as const;
   return [...alerts]
     .filter(isUnresolvedIncident)
     .sort((first, second) => {
-      const byPriority = priority[first.kind] - priority[second.kind];
-      return byPriority || second.occurredAt - first.occurredAt;
+      const rankDiff = getAttentionRank(first) - getAttentionRank(second);
+      return rankDiff || second.occurredAt - first.occurredAt;
     })
     .map((alert) => ({
       id: alert.id,
@@ -175,6 +184,8 @@ export function buildAssetExceptions(
       status,
       issue,
       actionLabel: device.assetId ? "Xem hồ sơ tài sản" : "Xem thiết bị",
+      maintenanceHoursRemaining: device.maintenanceHoursRemaining,
+      lastSeenAt: device.lastSeenAt,
     }];
   });
 }

@@ -50,4 +50,8 @@ export interface AssetException {
   status: Extract<OperationalStatus, "warning" | "critical" | "offline">;
   issue: string;
   actionLabel: string;
+  priority?: "high" | "medium" | "low" | "unclassified";
+  maintenanceHoursRemaining?: number;
+  lastSeenAt?: string;
 }
+

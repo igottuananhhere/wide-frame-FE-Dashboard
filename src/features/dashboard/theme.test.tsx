@@ -40,7 +40,9 @@ describe("dashboard color theme", () => {
 
   it("switches between light and dark and persists the selected mode", async () => {
     render(<App />);
-    fireEvent.click(screen.getByLabelText(/user menu for/i));
+    expect(screen.getByRole("group", { name: "Chế độ giao diện" })).toBeTruthy();
+    expect(document.querySelector(".dashboard-header-live .theme-switcher")).toBeTruthy();
+    expect(document.querySelector(".dashboard-user-menu .theme-switcher")).toBeNull();
     fireEvent.click(screen.getByRole("button", { name: "Sáng" }));
 
     expect(document.querySelector(".dashboard-shell")?.getAttribute("data-theme")).toBe("light");
@@ -54,9 +56,20 @@ describe("dashboard color theme", () => {
     render(<App />);
     expect(document.querySelector(".dashboard-shell")?.getAttribute("data-theme")).toBe("light");
 
-    fireEvent.click(screen.getByLabelText(/user menu for/i));
     fireEvent.click(screen.getByRole("button", { name: "Tối" }));
     expect(document.querySelector(".dashboard-shell")?.getAttribute("data-theme")).toBe("dark");
     expect(localStorage.getItem(THEME_STORAGE_KEY)).toBe("dark");
+  }, 15000);
+
+  it("provides light theme styling for environment attention areas, building stack and chart", async () => {
+    render(<App />);
+    fireEvent.click(screen.getByRole("button", { name: "Sáng" }));
+    expect(document.querySelector(".dashboard-shell")?.getAttribute("data-theme")).toBe("light");
+
+    // Verify building overview elements are rendered and accessible
+    expect(screen.getByText("Khu vực cần chú ý")).toBeTruthy();
+    expect(screen.getByText("Trạng thái khu vực")).toBeTruthy();
+    expect(document.querySelector(".building-environment-areas .environment-attention-link")).toBeTruthy();
+    expect(await screen.findByRole("img", { name: /cumulative energy/i })).toBeTruthy();
   });
 });

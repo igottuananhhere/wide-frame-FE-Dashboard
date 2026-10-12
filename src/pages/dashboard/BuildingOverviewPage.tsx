@@ -1,7 +1,7 @@
 import { lazy, Suspense, useMemo } from "react";
 import { Activity, ArrowUpRight, BellRing, Building2, Zap } from "lucide-react";
 import AlertItem from "../../components/dashboard/AlertItem";
-import AssetExceptionTable from "../../components/dashboard/AssetExceptionTable";
+import AssetExceptionsSection from "../../components/dashboard/AssetExceptionsSection";
 import BuildingStackPanel from "../../components/dashboard/BuildingStackPanel";
 import DetailStatCard from "../../components/dashboard/DetailStatCard";
 import ScopedDashboardLink from "../../components/common/ScopedDashboardLink";
@@ -22,7 +22,8 @@ const EnergyChart = lazy(() => import("../../components/dashboard/EnergyChart"))
 
 export default function BuildingOverviewPage() {
   const scope = useDashboardScopeData();
-  const { location, selectedBuilding, dataFloors, rooms, devices, alerts, airQualityByRoom } = scope;
+  const { location, selectedBuilding, dataFloors, rooms, devices, sensors, alerts, airQualityByRoom, energyDeviceReadings } = scope;
+  const events = useTwinStore((state) => state.events);
   const automaticTelemetryRunning = useTwinStore((state) => state.automaticTelemetryRunning);
   const lastUpdatedByFloor = useTwinStore((state) => state.lastUpdatedByFloor);
   const energyHistoryByFloor = useTwinStore((state) => state.energyHistoryByFloor);
@@ -66,9 +67,11 @@ export default function BuildingOverviewPage() {
           <p>Toàn cảnh tình trạng vận hành và các điểm cần xử lý trong tòa nhà</p>
         </div>
         <div className="overview-heading-actions">
-          <span className={`overview-live overview-live--${freshness.mode}`} role="status" aria-label={freshness.ariaLabel}>
-            <i aria-hidden="true" /> {freshness.label}
-          </span>
+          {freshness.mode !== "mixed" && (
+            <span className={`overview-live overview-live--${freshness.mode}`} role="status" aria-label={freshness.ariaLabel}>
+              <i aria-hidden="true" /> {freshness.label}
+            </span>
+          )}
           {scopedUpdatedAt !== undefined && (
             <time
               aria-label="Floor 1 telemetry last updated"
@@ -166,19 +169,17 @@ export default function BuildingOverviewPage() {
         </section>
       </div>
 
-      <section className="overview-panel asset-exceptions-panel" aria-labelledby="building-assets-title">
-        <header className="overview-panel-heading">
-          <div>
-            <p className="section-eyebrow">THIẾT BỊ & BẢO TRÌ · TẤT CẢ TẦNG CÓ DỮ LIỆU</p>
-            <h2 id="building-assets-title">Tài sản cần xử lý</h2>
-          </div>
-          <ScopedDashboardLink className="panel-text-link" to="/dashboard/assets">Tất cả tài sản <ArrowUpRight aria-hidden="true" size={14} /></ScopedDashboardLink>
-        </header>
-        {assetExceptions.length > 0
-          ? <AssetExceptionTable items={assetExceptions} />
-          : <p className="building-empty-state">Không có thiết bị hoặc tài sản cần xử lý trong phạm vi có dữ liệu.</p>}
-        <p className="detail-panel-footnote">Danh sách lấy từ thiết bị có trạng thái bất thường hoặc cần bảo trì ở các tầng đã cấu hình.</p>
-      </section>
+      <AssetExceptionsSection
+        items={assetExceptions}
+        alerts={alerts}
+        devices={devices}
+        sensors={sensors}
+        rooms={rooms}
+        floors={floors}
+        energyReadings={energyDeviceReadings}
+        events={events}
+        buildingName={selectedBuilding?.building.name ?? "ICS Headquarters"}
+      />
 
       <p className="building-scope-disclosure">Phạm vi tổng hợp: <strong>{dataFloors.map((floor) => floor.name).join(" + ")} · dữ liệu mô phỏng</strong>. Floors chưa có telemetry được hiển thị trong sơ đồ nhưng không được cộng vào tổng vận hành.</p>
     </section>

@@ -80,8 +80,9 @@ describe("mock authentication flows", () => {
     expect(await waitForOverview()).toBeTruthy();
     expect(screen.getAllByText("ICS Platform Administrator").length).toBeGreaterThan(0);
     expect(screen.getByText("Admin", { exact: true })).toBeTruthy();
-    expect(document.querySelector(".dashboard-header .live-indicator")?.getAttribute("aria-label"))
-      .toBe("Mixed data: Floor 1 paused simulation; Floor 2 static demo data");
+    expect(document.querySelector(".dashboard-header .live-indicator")).toBeNull();
+    expect(document.querySelector(".dashboard-header-live .building-floor-selector")).toBeTruthy();
+    expect(document.querySelector(".dashboard-header-location")).toBeNull();
     expect(document.querySelector(".dashboard-header .last-sync time")?.getAttribute("aria-label"))
       .toBe("Floor 1 telemetry last updated");
     expect((screen.getByRole("combobox", { name: "Building" }) as HTMLSelectElement).value).toBe("ics-headquarters");

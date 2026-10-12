@@ -1,9 +1,11 @@
-import { Bell, ChevronDown, LogOut, Menu } from "lucide-react";
-import type { RefObject } from "react";
+import { ChevronDown, LogOut, Menu } from "lucide-react";
+import { useMemo, type RefObject } from "react";
 import { Link } from "react-router-dom";
 import ICSLogo from "../common/ICSLogo";
 import BuildingFloorSelector from "./BuildingFloorSelector";
+import IncidentsPopover from "./IncidentsPopover";
 import { useAuthStore } from "../../features/auth/authStore";
+import { canControlDevice } from "../../features/auth/permissions";
 import { useTwinStore } from "../../features/twin/twinStore";
 import { ALL_BUILDING_SCOPE_ID } from "../../data/mock/buildingLocations";
 import type { EntityId } from "../../types/models";
@@ -42,6 +44,7 @@ export default function DashboardHeader({
   const setAutomaticTelemetryRunning = useTwinStore((state) => state.setAutomaticTelemetryRunning);
   const lastUpdatedByFloor = useTwinStore((state) => state.lastUpdatedByFloor);
   const alerts = useTwinStore((state) => state.alerts);
+  const acknowledgeAlert = useTwinStore((state) => state.acknowledgeAlert);
   const selectedFloor = locations.find((location) => location.building.id === buildingId)?.floors
     .find((floor) => floor.id === floorId);
   const noFloorData = floorId !== ALL_BUILDING_SCOPE_ID && selectedFloor?.dataAvailability !== "simulation";
@@ -49,8 +52,15 @@ export default function DashboardHeader({
   const scopedUpdatedAt = freshness.updatedFloorId
     ? lastUpdatedByFloor[freshness.updatedFloorId]
     : undefined;
-  const unresolvedAlertCount = alerts.filter((alert) => isUnresolvedIncident(alert)
-    && (floorId === ALL_BUILDING_SCOPE_ID || alert.floorId === floorId)).length;
+  const canAcknowledge = canControlDevice(role);
+  const scopedAlerts = useMemo(() => {
+    return alerts.filter((alert) => isUnresolvedIncident(alert)
+      && (floorId === ALL_BUILDING_SCOPE_ID || alert.floorId === floorId));
+  }, [alerts, floorId]);
+  const unresolvedAlertCount = scopedAlerts.length;
+  const scopeLabel = floorId === ALL_BUILDING_SCOPE_ID
+    ? "Toàn tòa nhà"
+    : selectedFloor?.name ?? "Tầng đang chọn";
 
   const displayName = user?.displayName ?? "ICS User";
   const initials = displayName.split(/\s+/).slice(0, 2).map((part) => part[0]).join("");
@@ -83,25 +93,35 @@ export default function DashboardHeader({
         <span className="dashboard-brand-caption">DIGITAL TWIN</span>
       </Link>
 
-      <div className="dashboard-header-location">
+      <div className="dashboard-header-live">
         <BuildingFloorSelector
           buildingId={buildingId}
           floorId={floorId}
           locations={locations}
           onLocationChange={onLocationChange}
         />
-      </div>
-
-      <div className="dashboard-header-live">
-        <span
-          className={`live-indicator live-indicator--${freshness.mode}`}
-          role="status"
-          aria-label={freshness.ariaLabel}
-          data-connection-status={freshness.connectionStatus}
-        >
-          <span aria-hidden="true" className="live-dot" />
-          {freshness.headerLabel}
-        </span>
+        <div aria-label="Chế độ giao diện" className="theme-switcher theme-switcher--header" role="group">
+          <span>Giao diện</span>
+          <div className="theme-switcher-options">
+            <button aria-pressed={theme === "light"} className="theme-switch-button" onClick={() => onThemeChange("light")} type="button">
+              Sáng
+            </button>
+            <button aria-pressed={theme === "dark"} className="theme-switch-button" onClick={() => onThemeChange("dark")} type="button">
+              Tối
+            </button>
+          </div>
+        </div>
+        {freshness.mode !== "mixed" && (
+          <span
+            className={`live-indicator live-indicator--${freshness.mode}`}
+            role="status"
+            aria-label={freshness.ariaLabel}
+            data-connection-status={freshness.connectionStatus}
+          >
+            <span aria-hidden="true" className="live-dot" />
+            {freshness.headerLabel}
+          </span>
+        )}
         <span className="last-sync">
           {scopedUpdatedAt !== undefined ? (
             <>
@@ -118,11 +138,14 @@ export default function DashboardHeader({
       </div>
 
       <div className="dashboard-header-actions">
-        <div aria-label={noFloorData ? `Alert data unavailable for ${selectedFloor?.name ?? "selected floor"}` : `${unresolvedAlertCount} unresolved alerts`} className="alerts-summary">
-          <Bell aria-hidden="true" size={17} />
-          <span>Sự cố</span>
-          <span className="alerts-count">{noFloorData ? "—" : unresolvedAlertCount}</span>
-        </div>
+        <IncidentsPopover
+          unresolvedAlertCount={unresolvedAlertCount}
+          noFloorData={noFloorData}
+          scopeLabel={scopeLabel}
+          alerts={scopedAlerts}
+          canAcknowledge={canAcknowledge}
+          onAcknowledge={acknowledgeAlert}
+        />
 
         <details className="dashboard-user-menu">
           <summary aria-label={`User menu for ${displayName}`}>
@@ -136,17 +159,6 @@ export default function DashboardHeader({
           <div className="user-menu-popover">
             <p className="user-popover-name">{displayName}</p>
             <p className="user-popover-role">{role} access</p>
-            <div aria-label="Chế độ giao diện" className="theme-switcher" role="group">
-              <span>Giao diện</span>
-              <div className="theme-switcher-options">
-                <button aria-pressed={theme === "light"} className="theme-switch-button" onClick={() => onThemeChange("light")} type="button">
-                  Sáng
-                </button>
-                <button aria-pressed={theme === "dark"} className="theme-switch-button" onClick={() => onThemeChange("dark")} type="button">
-                  Tối
-                </button>
-              </div>
-            </div>
             <button onClick={handleLogout} type="button">
               <LogOut aria-hidden="true" size={16} />
               Sign out

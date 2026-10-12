@@ -7,6 +7,7 @@ import { withFloorScope } from "../../features/building/scopedPath";
 type ScopedDashboardLinkProps = Omit<LinkProps, "to"> & { to: string };
 
 export default function ScopedDashboardLink({ to, ...props }: ScopedDashboardLinkProps) {
-  const { floorId } = useOutletContext<DashboardLocationContextValue>();
+  const context = useOutletContext<DashboardLocationContextValue | null>();
+  const floorId = context?.floorId;
   return <Link {...props} to={withFloorScope(to, floorId)} />;
 }

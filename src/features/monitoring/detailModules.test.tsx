@@ -171,6 +171,9 @@ describe("Phase 6 detail monitoring modules", () => {
     expect(deviceLink.getAttribute("href")).toBe("/dashboard/devices?deviceId=device-workspace-08");
     fireEvent.click(deviceLink);
 
+    const fullProfileLink = await screen.findByRole("link", { name: /mở hồ sơ đầy đủ/i });
+    fireEvent.click(fullProfileLink);
+
     expect(await screen.findByRole("heading", { name: "Thiết bị Toàn tòa nhà" })).toBeTruthy();
     expect(window.location.search).toBe("?deviceId=device-workspace-08");
     const table = screen.getByRole("table", { name: /devices in toàn tòa nhà/i });
@@ -239,18 +242,15 @@ describe("Phase 6 detail monitoring modules", () => {
     expect(within(attention).getByText("Đang xử lý")).toBeTruthy();
   });
 
-  it("labels building-scope freshness as mixed and identifies the live floor timestamp", async () => {
+  it("replaces the mixed-source badge with the building/floor filter on building scope", async () => {
     await openPage("/dashboard/overview");
 
-    const headerStatus = document.querySelector(".dashboard-header .live-indicator");
-    expect(headerStatus?.getAttribute("aria-label")).toBe(
-      "Mixed data: Floor 1 paused simulation; Floor 2 static demo data",
-    );
-    expect(headerStatus?.textContent).toContain("F1 PAUSED · F2 STATIC");
+    expect(document.querySelector(".dashboard-header-live .building-floor-selector")).toBeTruthy();
+    expect(document.querySelector(".dashboard-header-location")).toBeNull();
+    expect(document.querySelector(".dashboard-header .live-indicator")).toBeNull();
     expect(document.querySelector(".dashboard-header .last-sync time")?.getAttribute("aria-label"))
       .toBe("Floor 1 telemetry last updated");
-    expect(document.querySelector(".building-overview-page .overview-live")?.textContent)
-      .toContain("Floor 1 PAUSED · Floor 2 static demo");
+    expect(document.querySelector(".building-overview-page .overview-live")).toBeNull();
   });
 
   it("does not show Floor 1 live status or timestamp when Floor 2 is selected", async () => {

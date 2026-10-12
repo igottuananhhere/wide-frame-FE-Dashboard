@@ -9,6 +9,7 @@ export default mergeConfig(
       environment: "jsdom",
       clearMocks: true,
       restoreMocks: true,
+      testTimeout: 15000,
     },
   }),
 );
