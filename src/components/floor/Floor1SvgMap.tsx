@@ -13,18 +13,18 @@ type Floor1SvgMapProps = {
   rooms: readonly FloorRoomSnapshot[];
   geometry: readonly SchematicRoomGeometry[];
   selectedRoomId: string | null;
-  onSelectRoom: (room: FloorRoomSnapshot) => void;
+  onSelectRoom: (room: FloorRoomSnapshot, trigger: SVGGElement) => void;
   onHoverRoom: (room: FloorRoomSnapshot | null) => void;
 };
 
 function handleRoomKeyDown(
   event: KeyboardEvent<SVGGElement>,
   room: FloorRoomSnapshot,
-  onSelectRoom: (room: FloorRoomSnapshot) => void,
+  onSelectRoom: (room: FloorRoomSnapshot, trigger: SVGGElement) => void,
 ) {
   if (event.key === "Enter" || event.key === " ") {
     event.preventDefault();
-    onSelectRoom(room);
+    onSelectRoom(room, event.currentTarget);
   }
 }
 
@@ -124,7 +124,7 @@ export default function Floor1SvgMap({
               tabIndex={0}
               aria-label={ariaLabel}
               aria-pressed={selected}
-              onClick={() => onSelectRoom(room)}
+              onClick={(event) => onSelectRoom(room, event.currentTarget)}
               onKeyDown={(event) => handleRoomKeyDown(event, room, onSelectRoom)}
               onMouseEnter={() => onHoverRoom(room)}
               onMouseLeave={() => onHoverRoom(null)}

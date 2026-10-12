@@ -1,4 +1,4 @@
-import type { OperationalStatus } from "../../types/models";
+import type { AlertStatus, OperationalStatus } from "../../types/models";
 
 export type DashboardStatus = OperationalStatus | "online" | "maintenance";
 
@@ -22,6 +22,7 @@ export type AttentionKind = "critical" | "warning" | "maintenance";
 export interface AttentionEntry {
   id: string;
   kind: AttentionKind;
+  status: Extract<AlertStatus, "active" | "acknowledged">;
   title: string;
   location?: string;
   reading?: string;
@@ -42,6 +43,8 @@ export interface EnvironmentMetric {
 
 export interface AssetException {
   id: string;
+  deviceId: string;
+  assetId?: string;
   type: string;
   area: string;
   status: Extract<OperationalStatus, "warning" | "critical" | "offline">;

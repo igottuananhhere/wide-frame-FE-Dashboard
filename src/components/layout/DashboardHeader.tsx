@@ -1,4 +1,5 @@
 import { Bell, ChevronDown, LogOut, Menu } from "lucide-react";
+import type { RefObject } from "react";
 import { Link } from "react-router-dom";
 import ICSLogo from "../common/ICSLogo";
 import BuildingFloorSelector from "./BuildingFloorSelector";
@@ -7,6 +8,9 @@ import { useTwinStore } from "../../features/twin/twinStore";
 import { ALL_BUILDING_SCOPE_ID } from "../../data/mock/buildingLocations";
 import type { EntityId } from "../../types/models";
 import type { BuildingLocationOption } from "../../data/mock/buildingLocations";
+import { isUnresolvedIncident } from "../../features/alerts/alertSelectors";
+import { formatTelemetryTime, getDataFreshnessPresentation } from "../../features/building/dataFreshness";
+import type { DashboardTheme } from "../../features/theme/themePreferences";
 
 type DashboardHeaderProps = {
   locations: readonly BuildingLocationOption[];
@@ -15,6 +19,9 @@ type DashboardHeaderProps = {
   onLocationChange: (buildingId: EntityId, floorId: EntityId) => void;
   onMobileMenuToggle: () => void;
   isMobileMenuOpen: boolean;
+  mobileMenuButtonRef: RefObject<HTMLButtonElement | null>;
+  theme: DashboardTheme;
+  onThemeChange: (theme: DashboardTheme) => void;
 };
 
 export default function DashboardHeader({
@@ -24,19 +31,25 @@ export default function DashboardHeader({
   onLocationChange,
   onMobileMenuToggle,
   isMobileMenuOpen,
+  mobileMenuButtonRef,
+  theme,
+  onThemeChange,
 }: DashboardHeaderProps) {
   const user = useAuthStore((state) => state.user);
   const role = useAuthStore((state) => state.role);
   const logout = useAuthStore((state) => state.logout);
-  const connectionStatus = useTwinStore((state) => state.connectionStatus);
   const automaticTelemetryRunning = useTwinStore((state) => state.automaticTelemetryRunning);
   const setAutomaticTelemetryRunning = useTwinStore((state) => state.setAutomaticTelemetryRunning);
-  const lastUpdated = useTwinStore((state) => state.lastUpdated);
+  const lastUpdatedByFloor = useTwinStore((state) => state.lastUpdatedByFloor);
   const alerts = useTwinStore((state) => state.alerts);
   const selectedFloor = locations.find((location) => location.building.id === buildingId)?.floors
     .find((floor) => floor.id === floorId);
   const noFloorData = floorId !== ALL_BUILDING_SCOPE_ID && selectedFloor?.dataAvailability !== "simulation";
-  const activeAlertCount = alerts.filter((alert) => alert.status === "active"
+  const freshness = getDataFreshnessPresentation(floorId, automaticTelemetryRunning);
+  const scopedUpdatedAt = freshness.updatedFloorId
+    ? lastUpdatedByFloor[freshness.updatedFloorId]
+    : undefined;
+  const unresolvedAlertCount = alerts.filter((alert) => isUnresolvedIncident(alert)
     && (floorId === ALL_BUILDING_SCOPE_ID || alert.floorId === floorId)).length;
 
   const displayName = user?.displayName ?? "ICS User";
@@ -49,7 +62,9 @@ export default function DashboardHeader({
   return (
     <header className="dashboard-header">
       <button
+        ref={mobileMenuButtonRef}
         aria-expanded={isMobileMenuOpen}
+        aria-controls="dashboard-sidebar"
         aria-label={isMobileMenuOpen ? "Close navigation" : "Open navigation"}
         className="mobile-menu-toggle"
         onClick={onMobileMenuToggle}
@@ -79,27 +94,34 @@ export default function DashboardHeader({
 
       <div className="dashboard-header-live">
         <span
-          className={`live-indicator live-indicator--simulation${automaticTelemetryRunning ? " is-active" : ""}`}
+          className={`live-indicator live-indicator--${freshness.mode}`}
           role="status"
-          aria-label={automaticTelemetryRunning ? "Live simulation" : "Paused simulation"}
-          data-connection-status={connectionStatus}
+          aria-label={freshness.ariaLabel}
+          data-connection-status={freshness.connectionStatus}
         >
           <span aria-hidden="true" className="live-dot" />
-          {automaticTelemetryRunning ? "LIVE" : "PAUSED"}<i aria-hidden="true">/</i> SIMULATION
+          {freshness.headerLabel}
         </span>
         <span className="last-sync">
-          Last update <time aria-label={noFloorData ? "No data for selected floor" : "Last updated"} dateTime={noFloorData ? undefined : new Date(lastUpdated).toISOString()}>
-            {noFloorData ? "Chưa có dữ liệu" : new Intl.DateTimeFormat("en-GB", { hour: "2-digit", minute: "2-digit", second: "2-digit" })
-              .format(lastUpdated)}
-          </time>
+          {scopedUpdatedAt !== undefined ? (
+            <>
+              Floor 1 · Cập nhật <time aria-label="Floor 1 telemetry last updated" dateTime={new Date(scopedUpdatedAt).toISOString()}>
+                {formatTelemetryTime(scopedUpdatedAt)}
+              </time>
+            </>
+          ) : freshness.mode === "static" ? (
+            "Floor 2 · Dữ liệu mẫu, không cập nhật trực tiếp"
+          ) : (
+            "Tầng này chưa có dữ liệu"
+          )}
         </span>
       </div>
 
       <div className="dashboard-header-actions">
-        <div aria-label={noFloorData ? `Alert data unavailable for ${selectedFloor?.name ?? "selected floor"}` : `${activeAlertCount} active alerts`} className="alerts-summary">
+        <div aria-label={noFloorData ? `Alert data unavailable for ${selectedFloor?.name ?? "selected floor"}` : `${unresolvedAlertCount} unresolved alerts`} className="alerts-summary">
           <Bell aria-hidden="true" size={17} />
-          <span>Alerts</span>
-          <span className="alerts-count">{noFloorData ? "—" : activeAlertCount}</span>
+          <span>Sự cố</span>
+          <span className="alerts-count">{noFloorData ? "—" : unresolvedAlertCount}</span>
         </div>
 
         <details className="dashboard-user-menu">
@@ -114,6 +136,17 @@ export default function DashboardHeader({
           <div className="user-menu-popover">
             <p className="user-popover-name">{displayName}</p>
             <p className="user-popover-role">{role} access</p>
+            <div aria-label="Chế độ giao diện" className="theme-switcher" role="group">
+              <span>Giao diện</span>
+              <div className="theme-switcher-options">
+                <button aria-pressed={theme === "light"} className="theme-switch-button" onClick={() => onThemeChange("light")} type="button">
+                  Sáng
+                </button>
+                <button aria-pressed={theme === "dark"} className="theme-switch-button" onClick={() => onThemeChange("dark")} type="button">
+                  Tối
+                </button>
+              </div>
+            </div>
             <button onClick={handleLogout} type="button">
               <LogOut aria-hidden="true" size={16} />
               Sign out

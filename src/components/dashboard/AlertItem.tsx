@@ -25,6 +25,9 @@ export default function AlertItem({ item }: AlertItemProps) {
       <div className="attention-copy">
         <div className="attention-meta">
           <StatusBadge status={item.kind} label={kindLabels[item.kind]} />
+          <span className={`attention-handling-status attention-handling-status--${item.status}`}>
+            {item.status === "active" ? "Chưa tiếp nhận" : "Đang xử lý"}
+          </span>
           <time>{item.occurredAt}</time>
         </div>
         <h3>{item.title}</h3>

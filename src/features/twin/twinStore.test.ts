@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it } from "vitest";
 import { useTwinStore } from "./twinStore";
+import { ACTIVE_FLOOR_ID, DEMO_FLOOR_2_ID } from "../../data/mock/buildingLocations";
 
 const getRoom = (roomId: string) => useTwinStore.getState().rooms.find((room) => room.id === roomId);
 
@@ -92,5 +93,51 @@ describe("Twin simulation store", () => {
     expect(getRoom("room-server-01")?.status).toBe("normal");
     expect(state.alerts.some((alert) => alert.correlationKey === "server-temperature-high" && alert.status === "active"))
       .toBe(false);
+  });
+
+  it("resolves an acknowledged threshold incident when its reading returns to normal", () => {
+    const alert = useTwinStore.getState().alerts.find(
+      (item) => item.correlationKey === "air-quality-co2-room-meeting-02",
+    );
+    expect(alert).toBeTruthy();
+
+    useTwinStore.getState().acknowledgeAlert(alert!.id);
+    useTwinStore.getState().updateAirQuality("room-meeting-02", { co2Ppm: 800 });
+
+    expect(useTwinStore.getState().alerts.find((item) => item.id === alert!.id)?.status).toBe("resolved");
+  });
+
+  it("tracks telemetry update times independently by floor", () => {
+    const before = useTwinStore.getState();
+    const floor1Timestamp = before.lastUpdatedByFloor[ACTIVE_FLOOR_ID];
+    const floor2Alert = before.alerts.find((alert) => alert.floorId === DEMO_FLOOR_2_ID && alert.status === "active");
+    expect(floor1Timestamp).toBeTypeOf("number");
+    expect(floor2Alert).toBeTruthy();
+
+    useTwinStore.getState().acknowledgeAlert(floor2Alert!.id);
+    expect(useTwinStore.getState().lastUpdatedByFloor[ACTIVE_FLOOR_ID]).toBe(floor1Timestamp);
+
+    useTwinStore.getState().updateRoomTelemetry("room-meeting-02", { temperature: 25.1 });
+    const updatedFloor1Timestamp = useTwinStore.getState().lastUpdatedByFloor[ACTIVE_FLOOR_ID];
+    expect(updatedFloor1Timestamp).toBeGreaterThan(floor1Timestamp!);
+
+    useTwinStore.getState().updateRoomTelemetry("room-meeting-03", { temperature: 25.2 });
+    expect(useTwinStore.getState().lastUpdatedByFloor[DEMO_FLOOR_2_ID]).toBeGreaterThan(updatedFloor1Timestamp!);
+    expect(useTwinStore.getState().lastUpdatedByFloor[ACTIVE_FLOOR_ID]).toBe(updatedFloor1Timestamp);
+  });
+
+  it("timestamps a current energy observation instead of rewriting the seeded 17:00 point", () => {
+    useTwinStore.getState().simulateScenario("server-temperature-high");
+
+    const state = useTwinStore.getState();
+    const expectedTime = new Intl.DateTimeFormat("en-GB", {
+      hour: "2-digit",
+      minute: "2-digit",
+      hourCycle: "h23",
+    }).format(state.lastUpdatedByFloor[ACTIVE_FLOOR_ID]);
+    const latestPoint = state.energyHistoryByFloor[ACTIVE_FLOOR_ID].at(-1);
+
+    expect(latestPoint?.time).toBe(expectedTime);
+    expect(latestPoint?.time).not.toBe("17:00");
   });
 });

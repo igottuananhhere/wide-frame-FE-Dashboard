@@ -1,15 +1,33 @@
-import { ArrowUpRight, Boxes, Droplets, Thermometer, Wifi, WifiOff, X, Zap } from "lucide-react";
-import { Link } from "react-router-dom";
+import { useEffect, useRef } from "react";
+import { ArrowUpRight, Boxes, Clock3, Droplets, Thermometer, Wifi, WifiOff, X, Zap } from "lucide-react";
+import type { RefObject } from "react";
 import type { FloorRoomSnapshot } from "../../features/floor/types";
-import { focusTwinEntity } from "../../features/floor/focusTwinEntity";
+import ScopedDashboardLink from "../common/ScopedDashboardLink";
 import StatusBadge from "../dashboard/StatusBadge";
 
 type RoomDetailDrawerProps = {
   room: FloorRoomSnapshot;
+  closeButtonRef: RefObject<HTMLButtonElement | null>;
   onClose: () => void;
 };
 
-export default function RoomDetailDrawer({ room, onClose }: RoomDetailDrawerProps) {
+export default function RoomDetailDrawer({ room, closeButtonRef, onClose }: RoomDetailDrawerProps) {
+  const onCloseRef = useRef(onClose);
+
+  useEffect(() => {
+    onCloseRef.current = onClose;
+  }, [onClose]);
+
+  useEffect(() => {
+    const handleEscape = (event: KeyboardEvent) => {
+      if (event.key !== "Escape") return;
+      event.preventDefault();
+      onCloseRef.current();
+    };
+    document.addEventListener("keydown", handleEscape);
+    return () => document.removeEventListener("keydown", handleEscape);
+  }, []);
+
   return (
     <aside className="room-detail-drawer" role="complementary" aria-label={`${room.name} details`}>
       <div className="room-drawer-topline">
@@ -17,7 +35,7 @@ export default function RoomDetailDrawer({ room, onClose }: RoomDetailDrawerProp
           <p className="section-eyebrow">ROOM DETAIL / FLOOR 1</p>
           <h3 id="room-detail-title">{room.name}</h3>
         </div>
-        <button className="room-drawer-close" type="button" aria-label="Close room details" onClick={onClose}>
+        <button ref={closeButtonRef} className="room-drawer-close" type="button" aria-label="Close room details" onClick={onClose}>
           <X aria-hidden="true" size={17} />
         </button>
       </div>
@@ -64,12 +82,12 @@ export default function RoomDetailDrawer({ room, onClose }: RoomDetailDrawerProp
       </section>
 
       <div className="room-drawer-actions">
-        <Link className="room-action-secondary" to={`/dashboard/devices?roomId=${encodeURIComponent(room.id)}`}>
+        <ScopedDashboardLink className="room-action-secondary" to={`/dashboard/devices?roomId=${encodeURIComponent(room.id)}`}>
           Xem chi tiết <ArrowUpRight aria-hidden="true" size={15} />
-        </Link>
-        <Link className="room-action-primary" to={focusTwinEntity(room.id)}>
-          Xem trên 3D <ArrowUpRight aria-hidden="true" size={15} />
-        </Link>
+        </ScopedDashboardLink>
+        <span className="room-action-unavailable" role="note" aria-label="Room-specific 3D view is not available yet">
+          <Clock3 aria-hidden="true" size={14} /> Mô hình 3D · Chưa khả dụng
+        </span>
       </div>
     </aside>
   );

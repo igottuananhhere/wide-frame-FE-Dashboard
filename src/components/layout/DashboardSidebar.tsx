@@ -12,12 +12,18 @@ import {
   Zap,
   type LucideIcon,
 } from "lucide-react";
+import type { RefObject } from "react";
 import { NavLink } from "react-router-dom";
+import { withFloorScope } from "../../features/building/scopedPath";
 
 type DashboardSidebarProps = {
   isCollapsed: boolean;
   isMobileOpen: boolean;
+  isMobileInactive: boolean;
   activeScopeLabel: string;
+  sidebarRef: RefObject<HTMLElement | null>;
+  mobileCloseButtonRef: RefObject<HTMLButtonElement | null>;
+  floorId: string;
   onToggleCollapsed: () => void;
   onCloseMobile: () => void;
   onOverviewClick: () => void;
@@ -55,14 +61,22 @@ const NAVIGATION_GROUPS: readonly NavigationGroup[] = [
 export default function DashboardSidebar({
   isCollapsed,
   isMobileOpen,
+  isMobileInactive,
   activeScopeLabel,
+  sidebarRef,
+  mobileCloseButtonRef,
+  floorId,
   onToggleCollapsed,
   onCloseMobile,
   onOverviewClick,
 }: DashboardSidebarProps) {
   return (
     <aside
+      ref={sidebarRef}
+      id="dashboard-sidebar"
       aria-label="Application sidebar"
+      aria-hidden={isMobileInactive ? true : undefined}
+      inert={isMobileInactive ? true : undefined}
       className={`dashboard-sidebar${isCollapsed ? " dashboard-sidebar--collapsed" : ""}${isMobileOpen ? " dashboard-sidebar--mobile-open" : ""}`}
     >
       <div className="sidebar-topline">
@@ -74,6 +88,7 @@ export default function DashboardSidebar({
           </span>
         </div>
         <button
+          ref={mobileCloseButtonRef}
           aria-label={isMobileOpen ? "Close sidebar" : isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
           className="sidebar-collapse-button"
           onClick={isMobileOpen ? onCloseMobile : onToggleCollapsed}
@@ -100,7 +115,7 @@ export default function DashboardSidebar({
                   if (to === "/dashboard/overview") onOverviewClick();
                 }}
                 title={isCollapsed ? label : undefined}
-                to={to}
+                to={to === "/dashboard/overview" ? to : withFloorScope(to, floorId)}
               >
                 <Icon aria-hidden="true" size={18} strokeWidth={1.8} />
                 <span className="navigation-link-label">{label}</span>

@@ -1,6 +1,6 @@
 import { Activity, Bell, Leaf, Zap } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
-import { Link } from "react-router-dom";
+import ScopedDashboardLink from "../common/ScopedDashboardLink";
 import type { KpiIcon, KpiSummary } from "../../features/dashboard/types";
 import StatusBadge from "./StatusBadge";
 
@@ -33,5 +33,5 @@ export default function KpiCard({ item, to }: KpiCardProps) {
     </article>
   );
 
-  return to ? <Link aria-label={`Xem chi tiết: ${item.label}`} className="kpi-card-link" to={to}>{card}</Link> : card;
+  return to ? <ScopedDashboardLink aria-label={`Xem chi tiết: ${item.label}`} className="kpi-card-link" to={to}>{card}</ScopedDashboardLink> : card;
 }

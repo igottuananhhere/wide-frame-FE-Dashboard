@@ -1,5 +1,5 @@
 import { Activity } from "lucide-react";
-import { Link } from "react-router-dom";
+import ScopedDashboardLink from "./ScopedDashboardLink";
 
 type PhasePlaceholderProps = {
   title: string;
@@ -50,12 +50,12 @@ export default function PhasePlaceholder({
           <span className="rounded-full border border-border bg-surface-secondary px-3 py-1.5 text-xs font-medium text-text-secondary">
             Foundation only
           </span>
-          <Link
+          <ScopedDashboardLink
             className="inline-flex min-h-10 items-center rounded-lg bg-accent px-4 py-2 text-sm font-semibold text-background transition-colors hover:bg-accent-strong focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
             to={actionHref}
           >
             {actionLabel}
-          </Link>
+          </ScopedDashboardLink>
         </div>
       </section>
     </main>

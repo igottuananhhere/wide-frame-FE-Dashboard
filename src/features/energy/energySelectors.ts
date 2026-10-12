@@ -4,6 +4,39 @@ import type { EnergyPoint } from "../dashboard/types";
 import type { EntityId } from "../../types/models";
 import type { DeviceEnergyReading, EnergyAreaRow, EnergyDeviceRow } from "./types";
 
+export interface EnergyWasteEstimate {
+  excessKwh: number;
+  estimatedCostVnd: number;
+}
+
+export type EnergyChartSource = "current-day" | "dated-sample";
+
+export function selectEnergyChartPoints(
+  points: readonly EnergyPoint[],
+  source: EnergyChartSource,
+  currentTime: string,
+): EnergyPoint[] {
+  return source === "dated-sample"
+    ? [...points]
+    : points.filter((point) => point.time <= currentTime);
+}
+
+export function calculateEnergyWaste(
+  actualKwh: number,
+  baselineKwh: number,
+  rateVndPerKwh: number,
+): EnergyWasteEstimate {
+  const rawExcessKwh = Math.max(0, actualKwh - baselineKwh);
+  return {
+    excessKwh: Number(rawExcessKwh.toFixed(1)),
+    estimatedCostVnd: Math.round(rawExcessKwh * rateVndPerKwh),
+  };
+}
+
+export function formatEnergyCostVnd(costVnd: number): string {
+  return `${Math.round(costVnd).toLocaleString("vi-VN")} VND`;
+}
+
 export function combineEnergyHistoryByFloor(
   historyByFloor: Readonly<Record<EntityId, readonly EnergyPoint[]>>,
   floorIds: readonly EntityId[],

@@ -2,6 +2,7 @@ import { useMemo } from "react";
 import { Activity, Droplets, Leaf, Thermometer } from "lucide-react";
 import { useSearchParams } from "react-router-dom";
 import ModulePageHeader from "../../components/common/ModulePageHeader";
+import TableScrollHint from "../../components/common/TableScrollHint";
 import DetailStatCard from "../../components/dashboard/DetailStatCard";
 import StatusBadge from "../../components/dashboard/StatusBadge";
 import { floor1EnvironmentThresholds } from "../../data/mock/floor1Environment.mock";
@@ -77,7 +78,7 @@ export default function EnvironmentPage() {
           </div>
           <span className="detail-panel-tag">{readings.length} / {allReadings.length} KHU VỰC</span>
         </header>
-        <div className="detail-table-scroll">
+        <div className="detail-table-scroll" role="region" aria-label="Environmental readings by area; horizontal scroll to see all columns" tabIndex={0}>
           <table className="detail-data-table environment-data-table" aria-label="Environmental readings by area">
             <thead><tr><th>Khu vực</th><th>Nhiệt độ</th><th>Độ ẩm</th><th>CO₂</th><th>PM2.5</th><th>Điều kiện</th></tr></thead>
             <tbody>
@@ -93,6 +94,7 @@ export default function EnvironmentPage() {
               ))}
             </tbody>
           </table>
+          <TableScrollHint />
         </div>
         <footer className="environment-threshold-note">
           <span><b>Ngưỡng vận hành:</b> Nhiệt độ {floor1EnvironmentThresholds.temperatureMinC}–{floor1EnvironmentThresholds.temperatureMaxC}°C · Độ ẩm {floor1EnvironmentThresholds.humidityMinPercent}–{floor1EnvironmentThresholds.humidityMaxPercent}% · CO₂ ≤ {floor1EnvironmentThresholds.co2MaxPpm} ppm · PM2.5 ≤ {floor1EnvironmentThresholds.pm25MaxMicrograms} µg/m³</span>

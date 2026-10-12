@@ -120,6 +120,7 @@ export interface TwinStoreData {
   airQualityByRoom: RoomAirQualityReading[];
   energyHistory: EnergyPoint[];
   energyHistoryByFloor: Record<EntityId, EnergyPoint[]>;
+  lastUpdatedByFloor: Partial<Record<EntityId, number>>;
   energyDeviceReadings: DeviceEnergyReading[];
   alerts: TwinAlert[];
   selectedRoomId: EntityId | null;

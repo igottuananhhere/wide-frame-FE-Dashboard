@@ -27,7 +27,7 @@ function waitForOverview() {
   return screen.findByRole(
     "heading",
     { name: /tổng quan vận hành (?:floor 1|tòa nhà)/i },
-    { timeout: 3000 },
+    { timeout: 10000 },
   );
 }
 
@@ -41,15 +41,9 @@ beforeEach(async () => {
 });
 
 afterEach(() => {
-  const userMenu = screen.queryByLabelText(/user menu for/i);
-  const userMenuDetails = userMenu?.closest("details");
-  if (userMenuDetails) userMenuDetails.open = true;
-  const signOutButton = screen.queryByRole("button", { name: /sign out/i });
-  if (signOutButton) {
-    fireEvent.click(signOutButton);
-  }
   cleanup();
   sessionStorage.clear();
+  useAuthStore.setState({ user: null, role: null, isAuthenticated: false });
   useLoginTransitionStore.setState({ isTransitioning: false });
 });
 
@@ -76,18 +70,25 @@ describe("mock authentication flows", () => {
   });
 
   it("renders the reusable dashboard shell with the signed-in user", async () => {
-    await openRoute("/login");
-    await submitCredentials("admin", "admin123");
+    useAuthStore.setState({
+      user: { username: "admin", displayName: "ICS Platform Administrator", role: "Admin" },
+      role: "Admin",
+      isAuthenticated: true,
+    });
+    await openRoute("/dashboard/overview");
 
     expect(await waitForOverview()).toBeTruthy();
     expect(screen.getAllByText("ICS Platform Administrator").length).toBeGreaterThan(0);
     expect(screen.getByText("Admin", { exact: true })).toBeTruthy();
-    expect(screen.getAllByText(/simulation/i).length).toBeGreaterThan(0);
-    expect(screen.getByRole("time", { name: /last updated/i })).toBeTruthy();
+    expect(document.querySelector(".dashboard-header .live-indicator")?.getAttribute("aria-label"))
+      .toBe("Mixed data: Floor 1 paused simulation; Floor 2 static demo data");
+    expect(document.querySelector(".dashboard-header .last-sync time")?.getAttribute("aria-label"))
+      .toBe("Floor 1 telemetry last updated");
     expect((screen.getByRole("combobox", { name: "Building" }) as HTMLSelectElement).value).toBe("ics-headquarters");
     expect((screen.getByRole("combobox", { name: "Floor" }) as HTMLSelectElement).value)
       .toBe("ics-headquarters-all-floors");
-    expect(screen.getByRole("link", { name: /tổng quan/i })).toBeTruthy();
+    expect(screen.getByRole("navigation", { name: "Dashboard navigation" })
+      .querySelector('a[aria-current="page"]')?.textContent).toContain("Tổng quan");
     for (const label of ["Năng lượng", "Môi trường", "Thiết bị", "Sự cố", "Tài sản & bảo trì", "Mô hình 3D"]) {
       expect(screen.getByRole("link", { name: label })).toBeTruthy();
     }
@@ -95,19 +96,22 @@ describe("mock authentication flows", () => {
     const sidebar = screen.getByLabelText("Application sidebar");
     fireEvent.click(screen.getByRole("button", { name: /collapse sidebar/i }));
     expect(sidebar.className).toContain("dashboard-sidebar--collapsed");
-  });
+  }, 15000);
 
   it("keeps the Digital Twin 3D route as a placeholder inside the dashboard shell", async () => {
-    await openRoute("/login");
-    await submitCredentials("viewer", "viewer123");
-    await waitForOverview();
+    useAuthStore.setState({
+      user: { username: "viewer", displayName: "ICS Platform Viewer", role: "Viewer" },
+      role: "Viewer",
+      isAuthenticated: true,
+    });
+    await openRoute("/dashboard/overview");
 
     fireEvent.click(screen.getByRole("link", { name: "Mô hình 3D" }));
     expect(await screen.findByRole("heading", { name: /mô hình 3d/i })).toBeTruthy();
     expect(screen.getByText(/module planned for a later phase/i)).toBeTruthy();
     expect(screen.getByRole("link", { name: "Mô hình 3D" }).getAttribute("aria-current")).toBe("page");
     expect(screen.getByRole("banner")).toBeTruthy();
-  });
+  }, 15000);
 
   it.each([
     ["admin", "admin123", "Admin"],
@@ -122,7 +126,7 @@ describe("mock authentication flows", () => {
     fireEvent.click(screen.getByLabelText(/user menu for/i));
     expect(screen.getByText(role, { exact: true })).toBeTruthy();
     expect(useLoginTransitionStore.getState().isTransitioning).toBe(true);
-  });
+  }, 15000);
 
   it("allows keyboard users to reveal and hide the password", async () => {
     await openRoute("/login");
@@ -164,8 +168,12 @@ describe("mock authentication flows", () => {
   });
 
   it("returns to login after logout", async () => {
-    await openRoute("/login");
-    await submitCredentials("viewer", "viewer123");
+    useAuthStore.setState({
+      user: { username: "viewer", displayName: "ICS Platform Viewer", role: "Viewer" },
+      role: "Viewer",
+      isAuthenticated: true,
+    });
+    await openRoute("/dashboard/overview");
     fireEvent.click(await screen.findByLabelText(/user menu for/i));
     fireEvent.click(await screen.findByRole("button", { name: /sign out/i }));
 

@@ -51,9 +51,9 @@ Chọn KPI năng lượng để mở trang Energy.
 
 **Nói:** “Sự cố có trạng thái để theo dõi việc tiếp nhận. Trong POC, thao tác này chỉ đổi trạng thái local.”
 
-**Làm:** đăng nhập Admin, mở `/dashboard/incidents`; chọn Acknowledge ở một sự cố Open, sau đó chọn bộ lọc Acknowledged. Đăng nhập Viewer để xem trang ở chế độ chỉ đọc.
+**Làm:** đăng nhập Admin, mở `/dashboard/incidents`; chọn **Tiếp nhận** ở một sự cố **Chưa tiếp nhận**. Xác nhận sự cố vẫn nằm trong **Chưa giải quyết** với trạng thái **Đang xử lý**, rồi chọn bộ lọc **Đang xử lý**. Đăng nhập Viewer để xem trang ở chế độ chỉ đọc.
 
-**Kỳ vọng:** Admin chuyển được sự cố sang Acknowledged và tìm thấy trong danh sách tương ứng; Viewer chỉ thấy ghi chú “Admin xử lý”. Đây chưa phải thao tác gửi tới hệ thống vận hành thật.
+**Kỳ vọng:** sự cố đã tiếp nhận vẫn được tính là chưa giải quyết; Viewer chỉ thấy ghi chú “Admin xử lý”. Sự cố được đánh dấu **Đã giải quyết** khi mô phỏng khôi phục điều kiện. Đây chưa phải thao tác gửi tới hệ thống vận hành thật.
 
 ### 6. Assets — hồ sơ Digital Identity
 

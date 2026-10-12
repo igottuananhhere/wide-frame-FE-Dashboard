@@ -8,6 +8,7 @@ import type {
 } from "../dashboard/types";
 import type { FloorRoomSnapshot } from "../floor/types";
 import type { AreaEnvironmentReading, EnvironmentThresholds } from "../environment/types";
+import { isUnresolvedIncident } from "../alerts/alertSelectors";
 import type { TwinAlert, TwinDevice } from "./types";
 
 const relativeTime = (timestamp: number, now: number): string => {
@@ -22,7 +23,7 @@ const relativeTime = (timestamp: number, now: number): string => {
 export function buildAttentionQueue(alerts: readonly TwinAlert[], now = Date.now()): AttentionEntry[] {
   const priority = { critical: 0, warning: 1, maintenance: 2 } as const;
   return [...alerts]
-    .filter((alert) => alert.status === "active")
+    .filter(isUnresolvedIncident)
     .sort((first, second) => {
       const byPriority = priority[first.kind] - priority[second.kind];
       return byPriority || second.occurredAt - first.occurredAt;
@@ -30,6 +31,7 @@ export function buildAttentionQueue(alerts: readonly TwinAlert[], now = Date.now
     .map((alert) => ({
       id: alert.id,
       kind: alert.kind,
+      status: alert.status,
       title: alert.title,
       location: alert.location,
       reading: alert.reading,
@@ -46,17 +48,15 @@ export function buildOverviewKpis(
   const deviceCount = rooms.reduce((total, room) => total + room.deviceCount, 0);
   const onlineCount = rooms.reduce((total, room) => total + room.onlineDeviceCount, 0);
   const offlineCount = rooms.reduce((total, room) => total + room.offlineDeviceCount, 0);
-  const activeAlerts = alerts.filter((alert) => alert.status === "active");
-  const criticalCount = activeAlerts.filter((alert) => alert.severity === "critical").length;
-  const warningCount = activeAlerts.filter((alert) => alert.severity === "warning" && alert.kind !== "maintenance").length;
-  const maintenanceCount = activeAlerts.filter((alert) => alert.kind === "maintenance").length;
+  const unresolvedAlerts = alerts.filter(isUnresolvedIncident);
+  const unacknowledgedCount = unresolvedAlerts.filter((alert) => alert.status === "active").length;
+  const acknowledgedCount = unresolvedAlerts.filter((alert) => alert.status === "acknowledged").length;
   const energyTotal = rooms.reduce((total, room) => total + room.energyConsumption, 0);
   const energyChangePercent = yesterdayKwh > 0 ? ((energyTotal / yesterdayKwh) - 1) * 100 : 0;
 
   const alertDetails: KpiDetail[] = [];
-  if (criticalCount > 0) alertDetails.push({ label: `${criticalCount} Critical`, tone: "critical" });
-  if (warningCount > 0) alertDetails.push({ label: `${warningCount} Warning`, tone: "warning" });
-  if (maintenanceCount > 0) alertDetails.push({ label: `${maintenanceCount} Maintenance`, tone: "maintenance" });
+  if (unacknowledgedCount > 0) alertDetails.push({ label: `${unacknowledgedCount} chưa tiếp nhận`, tone: "warning" });
+  if (acknowledgedCount > 0) alertDetails.push({ label: `${acknowledgedCount} đang xử lý`, tone: "warning" });
 
   return [
     {
@@ -96,8 +96,8 @@ export function buildOverviewKpis(
     },
     {
       id: "alerts",
-      label: "Sự cố đang mở",
-      value: String(activeAlerts.length),
+      label: "Sự cố chưa giải quyết",
+      value: String(unresolvedAlerts.length),
       icon: "alerts",
       details: alertDetails,
     },
@@ -168,11 +168,13 @@ export function buildAssetExceptions(
 
     return [{
       id: device.name,
+      deviceId: device.id,
+      assetId: device.assetId,
       type: device.type,
       area: room?.name ?? "—",
       status,
       issue,
-      actionLabel: "Xem thiết bị",
+      actionLabel: device.assetId ? "Xem hồ sơ tài sản" : "Xem thiết bị",
     }];
   });
 }

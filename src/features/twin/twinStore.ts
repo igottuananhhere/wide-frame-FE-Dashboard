@@ -1,5 +1,9 @@
 import { create } from "zustand";
-import { BUILDING_LOCATIONS, DEMO_FLOOR_2_ID } from "../../data/mock/buildingLocations";
+import {
+  ACTIVE_FLOOR_ID,
+  BUILDING_LOCATIONS,
+  DEMO_FLOOR_2_ID,
+} from "../../data/mock/buildingLocations";
 import { floor1Rooms } from "../../data/mock/floor1.mock";
 import { floor1AirQualityByRoom, floor1EnvironmentThresholds } from "../../data/mock/floor1Environment.mock";
 import { floor1DeviceEnergyReadings } from "../../data/mock/floor1EnergyDetail.mock";
@@ -72,6 +76,7 @@ function createInitialData(now: number): TwinStoreData {
     airQualityByRoom: [...floor1AirQualityByRoom, ...floor2AirQualityByRoom].map((reading) => ({ ...reading })),
     energyHistory: combineEnergyHistoryByFloor(energyHistoryByFloor, energyFloorIds),
     energyHistoryByFloor,
+    lastUpdatedByFloor: { [ACTIVE_FLOOR_ID]: now },
     energyDeviceReadings: [...floor1DeviceEnergyReadings, ...floor2DeviceEnergyReadings].map((reading) => ({ ...reading })),
     alerts: initialAlerts,
     selectedRoomId: null,
@@ -123,6 +128,14 @@ function nextTimestamp(previous: number): number {
   return Math.max(Date.now(), previous + 1);
 }
 
+function updateFloorTimestamp(
+  timestamps: TwinStoreData["lastUpdatedByFloor"],
+  floorId: string,
+  timestamp: number,
+): TwinStoreData["lastUpdatedByFloor"] {
+  return { ...timestamps, [floorId]: timestamp };
+}
+
 function appendEvents(
   current: readonly TwinSimulationEvent[],
   next: readonly TwinSimulationEvent[],
@@ -145,20 +158,34 @@ function energyTotal(rooms: readonly FloorRoomSnapshot[]): number {
   return rooms.reduce((total, room) => total + room.energyConsumption, 0);
 }
 
-function updateEnergyHistory(energyHistory: TwinStoreData["energyHistory"], total: number) {
-  return energyHistory.map((point, index) => index === energyHistory.length - 1
-    ? { ...point, kwh: Number(total.toFixed(1)) }
-    : point);
+function formatEnergyObservationTime(timestamp: number): string {
+  const date = new Date(timestamp);
+  return `${String(date.getHours()).padStart(2, "0")}:${String(date.getMinutes()).padStart(2, "0")}`;
+}
+
+function updateEnergyHistory(
+  energyHistory: TwinStoreData["energyHistory"],
+  total: number,
+  timestamp: number,
+) {
+  const time = formatEnergyObservationTime(timestamp);
+  const observedHistory = energyHistory.filter((point) => point.time <= time);
+  const currentPointIndex = observedHistory.findIndex((point) => point.time === time);
+  const currentPoint = { time, kwh: Number(total.toFixed(1)) };
+
+  if (currentPointIndex === -1) return [...observedHistory, currentPoint];
+  return observedHistory.map((point, index) => index === currentPointIndex ? currentPoint : point);
 }
 
 function updateFloorEnergyHistory(
   energyHistoryByFloor: TwinStoreData["energyHistoryByFloor"],
   floorId: string,
   floorTotal: number,
+  timestamp: number,
 ) {
   const nextEnergyHistoryByFloor = {
     ...energyHistoryByFloor,
-    [floorId]: updateEnergyHistory(energyHistoryByFloor[floorId] ?? [], floorTotal),
+    [floorId]: updateEnergyHistory(energyHistoryByFloor[floorId] ?? [], floorTotal, timestamp),
   };
   return {
     energyHistoryByFloor: nextEnergyHistoryByFloor,
@@ -286,6 +313,7 @@ export const useTwinStore = create<TwinStoreState>((set, get) => ({
       state.energyHistoryByFloor,
       currentRoom.floorId,
       energyTotal(rooms.filter((room) => room.floorId === currentRoom.floorId)),
+      timestamp,
     );
 
     let alerts = state.alerts;
@@ -295,7 +323,7 @@ export const useTwinStore = create<TwinStoreState>((set, get) => ({
       alerts = result.alerts;
       alertSequence = result.alertSequence;
     } else if (roomId === SERVER_ROOM_ID && updatedRoom.temperature < TEMP_WARNING_THRESHOLD) {
-      alerts = alerts.map((alert) => alert.correlationKey === "server-temperature-high" && alert.status === "active"
+      alerts = alerts.map((alert) => alert.correlationKey === "server-temperature-high" && alert.status !== "resolved"
         ? { ...alert, status: "resolved" as const }
         : alert);
     }
@@ -311,6 +339,7 @@ export const useTwinStore = create<TwinStoreState>((set, get) => ({
       alertSequence,
       events: appendEvents(state.events, events),
       lastUpdated: timestamp,
+      lastUpdatedByFloor: updateFloorTimestamp(state.lastUpdatedByFloor, currentRoom.floorId, timestamp),
     };
   }),
 
@@ -362,7 +391,7 @@ export const useTwinStore = create<TwinStoreState>((set, get) => ({
         alerts = result.alerts;
         alertSequence = result.alertSequence;
       } else {
-        alerts = alerts.map((alert) => alert.correlationKey === correlationKey && alert.status === "active"
+        alerts = alerts.map((alert) => alert.correlationKey === correlationKey && alert.status !== "resolved"
           ? { ...alert, status: "resolved" as const }
           : alert);
       }
@@ -386,6 +415,7 @@ export const useTwinStore = create<TwinStoreState>((set, get) => ({
       alertSequence,
       events: appendEvents(state.events, events),
       lastUpdated: timestamp,
+      lastUpdatedByFloor: updateFloorTimestamp(state.lastUpdatedByFloor, room.floorId, timestamp),
     };
   }),
 
@@ -418,6 +448,7 @@ export const useTwinStore = create<TwinStoreState>((set, get) => ({
         ? { ...item, status, lastSeenAt: status === "offline" ? item.lastSeenAt : new Date(timestamp).toISOString() }
         : item);
     const nextRooms = rooms.map((room) => ({ ...room, status: roomStatus(room, devices) }));
+    const deviceRoom = state.rooms.find((room) => room.id === device.roomId);
 
     return {
       devices,
@@ -425,13 +456,21 @@ export const useTwinStore = create<TwinStoreState>((set, get) => ({
       rooms: nextRooms,
       events: appendEvents(state.events, event),
       lastUpdated: timestamp,
+      ...(deviceRoom
+        ? { lastUpdatedByFloor: updateFloorTimestamp(state.lastUpdatedByFloor, deviceRoom.floorId, timestamp) }
+        : {}),
     };
   }),
 
   addAlert: (input) => set((state) => {
     const timestamp = nextTimestamp(state.lastUpdated);
     const updated = upsertAlert(state, input, timestamp);
-    return { ...updated, lastUpdated: timestamp };
+    const room = state.rooms.find((item) => item.id === input.roomId);
+    return {
+      ...updated,
+      lastUpdated: timestamp,
+      ...(room ? { lastUpdatedByFloor: updateFloorTimestamp(state.lastUpdatedByFloor, room.floorId, timestamp) } : {}),
+    };
   }),
 
   acknowledgeAlert: (alertId) => set((state) => {
@@ -489,6 +528,7 @@ export const useTwinStore = create<TwinStoreState>((set, get) => ({
             occurredAt: timestamp,
           }]),
           lastUpdated: timestamp,
+          lastUpdatedByFloor: updateFloorTimestamp(state.lastUpdatedByFloor, ACTIVE_FLOOR_ID, timestamp),
         };
       });
       get().addAlert({
@@ -549,6 +589,7 @@ export const useTwinStore = create<TwinStoreState>((set, get) => ({
           current.energyHistoryByFloor,
           floor1Rooms[0]?.floorId ?? "ics-headquarters-floor-1",
           energyTotal(rooms.filter((room) => room.floorId === (floor1Rooms[0]?.floorId ?? "ics-headquarters-floor-1"))),
+          current.lastUpdated,
         ),
       };
     });

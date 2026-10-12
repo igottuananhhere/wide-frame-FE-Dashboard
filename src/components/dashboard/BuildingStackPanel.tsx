@@ -2,6 +2,7 @@ import type { KeyboardEvent } from "react";
 import type { Floor } from "../../types/models";
 import type { FloorRoomSnapshot } from "../../features/floor/types";
 import type { TwinAlert } from "../../features/twin/types";
+import { isUnresolvedIncident } from "../../features/alerts/alertSelectors";
 
 type BuildingStackPanelProps = {
   floors: readonly Floor[];
@@ -53,7 +54,7 @@ export default function BuildingStackPanel({ floors, rooms, alerts, onSelectFloo
             const y = 43 + index * 49;
             const hasData = floor.dataAvailability === "simulation";
             const floorRooms = rooms.filter((room) => room.floorId === floor.id);
-            const floorAlerts = alerts.filter((alert) => alert.floorId === floor.id && alert.status === "active");
+            const floorAlerts = alerts.filter((alert) => alert.floorId === floor.id && isUnresolvedIncident(alert));
             const deviceCount = floorRooms.reduce((total, room) => total + room.deviceCount, 0);
             const statusCounts = floorRooms.reduce<Record<string, number>>((counts, room) => {
               counts[room.status] = (counts[room.status] ?? 0) + 1;
@@ -64,7 +65,7 @@ export default function BuildingStackPanel({ floors, rooms, alerts, onSelectFloo
               .map((status) => `${statusCounts[status]} ${floorStatusLabel[status as FloorRoomSnapshot["status"]].toLowerCase()}`)
               .join(" · ");
             const ariaLabel = hasData
-              ? `${floor.name}, dữ liệu mô phỏng: ${floorRooms.length} khu vực, ${deviceCount} thiết bị, ${floorAlerts.length} sự cố đang mở. ${roomHealth}. Chọn để mở tổng quan tầng.`
+              ? `${floor.name}, dữ liệu mô phỏng: ${floorRooms.length} khu vực, ${deviceCount} thiết bị, ${floorAlerts.length} sự cố chưa giải quyết. ${roomHealth}. Chọn để mở tổng quan tầng.`
               : `${floor.name}, chưa có dữ liệu giám sát. Chọn để xem trạng thái cấu hình.`;
 
             return (
@@ -83,7 +84,7 @@ export default function BuildingStackPanel({ floors, rooms, alerts, onSelectFloo
                 <text className="building-stack-floor-name" x="170" y={y + 19}>{floor.name}</text>
                 <text className="building-stack-floor-detail" x="170" y={y + 33}>
                   {hasData
-                    ? `${floorRooms.length} khu vực · ${deviceCount} thiết bị · ${floorAlerts.length} sự cố đang mở`
+                    ? `${floorRooms.length} khu vực · ${deviceCount} thiết bị · ${floorAlerts.length} sự cố chưa giải quyết`
                     : "Chưa cấu hình nguồn dữ liệu cho tầng này"}
                 </text>
                 <circle className={`building-stack-state-dot${hasData ? " building-stack-state-dot--active" : ""}`} cx="657" cy={y + 15} r="4" />

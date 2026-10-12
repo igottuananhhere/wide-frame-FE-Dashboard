@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useLayoutEffect, useRef, useState } from "react";
 import { MapPinned } from "lucide-react";
 import { ACTIVE_FLOOR_ID } from "../../data/mock/buildingLocations";
 import { floor1SchematicGeometry } from "../../data/mock/floor1.mock";
@@ -16,6 +16,8 @@ const statusLabels = {
 
 export default function Floor1MapPanel() {
   const [hoveredRoom, setHoveredRoom] = useState<FloorRoomSnapshot | null>(null);
+  const selectedRoomTrigger = useRef<HTMLElement | SVGElement | null>(null);
+  const drawerCloseButton = useRef<HTMLButtonElement>(null);
   const allRooms = useTwinStore((state) => state.rooms);
   const allDevices = useTwinStore((state) => state.devices);
   const rooms = allRooms.filter((room) => room.floorId === ACTIVE_FLOOR_ID);
@@ -25,6 +27,21 @@ export default function Floor1MapPanel() {
   const selectRoom = useTwinStore((state) => state.selectRoom);
   const selectedRoom = rooms.find((room) => room.id === selectedRoomId) ?? null;
   const operationalExceptions = rooms.filter((room) => room.status !== "normal");
+
+  useLayoutEffect(() => {
+    if (selectedRoomId) drawerCloseButton.current?.focus();
+  }, [selectedRoomId]);
+
+  const selectRoomFromTrigger = (room: FloorRoomSnapshot, trigger: HTMLElement | SVGElement) => {
+    selectedRoomTrigger.current = trigger;
+    trigger.focus();
+    selectRoom(room.id);
+  };
+
+  const closeRoomDrawer = () => {
+    if (selectedRoomTrigger.current?.isConnected) selectedRoomTrigger.current.focus();
+    selectRoom(null);
+  };
 
   const roomCause = (room: FloorRoomSnapshot) => {
     const causes = devices
@@ -53,7 +70,7 @@ export default function Floor1MapPanel() {
           rooms={rooms}
           geometry={floor1SchematicGeometry}
           selectedRoomId={selectedRoomId}
-          onSelectRoom={(room) => selectRoom(room.id)}
+          onSelectRoom={selectRoomFromTrigger}
           onHoverRoom={setHoveredRoom}
         />
 
@@ -71,7 +88,7 @@ export default function Floor1MapPanel() {
         )}
 
         {selectedRoom && (
-          <RoomDetailDrawer room={selectedRoom} onClose={() => selectRoom(null)} />
+          <RoomDetailDrawer room={selectedRoom} closeButtonRef={drawerCloseButton} onClose={closeRoomDrawer} />
         )}
       </div>
 
@@ -91,7 +108,7 @@ export default function Floor1MapPanel() {
                   aria-label={`${room.name}: ${statusLabels[room.status]}. ${roomCause(room)}. Chọn để xem chi tiết.`}
                   className={`floor-map-exception floor-map-exception--${room.status}`}
                   key={room.id}
-                  onClick={() => selectRoom(room.id)}
+                  onClick={(event) => selectRoomFromTrigger(room, event.currentTarget)}
                   type="button"
                 >
                   <span><b>{room.name}</b><i>{statusLabels[room.status]}</i></span>

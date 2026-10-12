@@ -1,5 +1,6 @@
 import { ArrowUpRight } from "lucide-react";
-import { Link } from "react-router-dom";
+import TableScrollHint from "../common/TableScrollHint";
+import ScopedDashboardLink from "../common/ScopedDashboardLink";
 import type { AssetException } from "../../features/dashboard/types";
 import StatusBadge from "./StatusBadge";
 
@@ -7,7 +8,7 @@ type AssetExceptionTableProps = { items: readonly AssetException[] };
 
 export default function AssetExceptionTable({ items }: AssetExceptionTableProps) {
   return (
-    <div className="asset-table-scroll">
+    <div className="asset-table-scroll" role="region" aria-label="Asset exceptions table; horizontal scroll to see all columns" tabIndex={0}>
       <table className="asset-exception-table" aria-label="Asset exceptions">
         <thead>
           <tr>
@@ -28,14 +29,21 @@ export default function AssetExceptionTable({ items }: AssetExceptionTableProps)
               <td><StatusBadge status={item.status} /></td>
               <td>{item.issue}</td>
               <td>
-                <Link className="asset-action-link" to="/dashboard/assets" aria-label={`${item.actionLabel}: ${item.id}`}>
+                <ScopedDashboardLink
+                  className="asset-action-link"
+                  to={item.assetId
+                    ? `/dashboard/assets?assetId=${encodeURIComponent(item.assetId)}`
+                    : `/dashboard/devices?deviceId=${encodeURIComponent(item.deviceId)}`}
+                  aria-label={`${item.actionLabel}: ${item.id}`}
+                >
                   {item.actionLabel}<ArrowUpRight aria-hidden="true" size={14} />
-                </Link>
+                </ScopedDashboardLink>
               </td>
             </tr>
           ))}
         </tbody>
       </table>
+      <TableScrollHint />
     </div>
   );
 }

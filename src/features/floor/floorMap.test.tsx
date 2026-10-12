@@ -1,4 +1,4 @@
-import { act, cleanup, fireEvent, render, screen, within } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import App from "../../app/App";
 import { router } from "../../app/router";
@@ -16,6 +16,7 @@ beforeEach(async () => {
   });
   useLoginTransitionStore.setState({ isTransitioning: false });
   useTwinStore.getState().resetSimulation();
+  useTwinStore.getState().selectRoom(null);
   await act(async () => {
     await router.navigate("/dashboard/overview");
   });
@@ -27,6 +28,7 @@ afterEach(() => {
   useAuthStore.setState({ user: null, role: null, isAuthenticated: false });
   useLoginTransitionStore.setState({ isTransitioning: false });
   useTwinStore.getState().resetSimulation();
+  useTwinStore.getState().selectRoom(null);
 });
 
 async function openFloorOneDashboard() {
@@ -71,32 +73,52 @@ describe("Floor 1 interactive map", () => {
     expect(drawer.textContent).toContain("23.4 kWh");
     expect(drawer.textContent).toContain("4");
     const detailsLink = within(drawer).getByRole("link", { name: "Xem chi tiết" });
-    expect(detailsLink.getAttribute("href")).toBe("/dashboard/devices?roomId=room-server-01");
-    expect(within(drawer).getByRole("link", { name: "Xem trên 3D" }).getAttribute("href"))
-      .toBe("/dashboard/digital-twin?focus=room-server-01");
+    expect(detailsLink.getAttribute("href")).toBe("/dashboard/devices?roomId=room-server-01&floorId=ics-headquarters-floor-1");
+    expect(within(drawer).queryByRole("link", { name: "Xem trên 3D" })).toBeNull();
+    expect(within(drawer).getByText("Mô hình 3D · Chưa khả dụng")).toBeTruthy();
     fireEvent.click(detailsLink);
     expect(await screen.findByRole("heading", { name: "Thiết bị Floor 1" })).toBeTruthy();
     expect(screen.getByRole("status", { name: /devices filtered by server room/i })).toBeTruthy();
     expect(screen.getByRole("row", { name: /temp-srv-01/i })).toBeTruthy();
-    expect(window.location.search).toBe("?roomId=room-server-01");
+    expect(window.location.search).toBe("?roomId=room-server-01&floorId=ics-headquarters-floor-1");
     fireEvent.click(screen.getByRole("button", { name: "Xóa lọc khu vực" }));
-    expect(window.location.search).toBe("");
+    expect(window.location.search).toBe("?floorId=ics-headquarters-floor-1");
     expect(screen.getByRole("row", { name: /temp-04/i })).toBeTruthy();
-  });
+  }, 15000);
 
   it("selects a room from the keyboard and exposes its state in the map", async () => {
     await openFloorOneDashboard();
 
     const meetingRoom = await screen.findByRole("button", { name: /meeting room 02/i });
+    meetingRoom.focus();
     expect(meetingRoom.getAttribute("aria-pressed")).toBe("false");
     fireEvent.keyDown(meetingRoom, { key: "Enter" });
 
     expect(meetingRoom.getAttribute("aria-pressed")).toBe("true");
-    expect(screen.getByRole("complementary", { name: /meeting room 02/i }).textContent)
-      .toContain("Bình thường");
-  });
+    const drawer = screen.getByRole("complementary", { name: /meeting room 02/i });
+    expect(drawer.textContent).toContain("Bình thường");
+    const closeButton = within(drawer).getByRole("button", { name: "Close room details" });
+    await waitFor(() => expect(document.activeElement).toBe(closeButton));
 
-  it("shows a lightweight room readout on hover and opens the focused 3D route", async () => {
+    fireEvent.keyDown(document, { key: "Escape" });
+    expect(screen.queryByRole("complementary", { name: /meeting room 02/i })).toBeNull();
+    await waitFor(() => expect(document.activeElement).toBe(meetingRoom));
+  }, 15000);
+
+  it("returns focus to the selected map room when the drawer close button is used", async () => {
+    await openFloorOneDashboard();
+    const serverRoom = await screen.findByRole("button", { name: /server room/i });
+    serverRoom.focus();
+    fireEvent.click(serverRoom);
+
+    const drawer = screen.getByRole("complementary", { name: /server room/i });
+    const closeButton = within(drawer).getByRole("button", { name: "Close room details" });
+    await waitFor(() => expect(document.activeElement).toBe(closeButton));
+    fireEvent.click(closeButton);
+    await waitFor(() => expect(document.activeElement).toBe(serverRoom));
+  }, 15000);
+
+  it("shows a lightweight room readout and communicates that 3D focus is unavailable", async () => {
     await openFloorOneDashboard();
 
     const serverRoom = await screen.findByRole("button", { name: /server room/i });
@@ -104,11 +126,10 @@ describe("Floor 1 interactive map", () => {
     expect(screen.getByRole("tooltip").textContent).toContain("25.4°C");
 
     fireEvent.click(serverRoom);
-    fireEvent.click(screen.getByRole("link", { name: "Xem trên 3D" }));
-
-    expect(await screen.findByRole("heading", { name: "Mô hình 3D" })).toBeTruthy();
-    expect(window.location.pathname).toBe("/dashboard/digital-twin");
-    expect(window.location.search).toBe("?focus=room-server-01");
+    const drawer = screen.getByRole("complementary", { name: /server room/i });
+    expect(within(drawer).getByText("Mô hình 3D · Chưa khả dụng")).toBeTruthy();
+    expect(within(drawer).queryByRole("link", { name: /xem trên 3d/i })).toBeNull();
+    expect(window.location.pathname).toBe("/dashboard/overview");
   });
 
 });

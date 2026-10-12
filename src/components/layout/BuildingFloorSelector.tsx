@@ -1,6 +1,10 @@
 import type { EntityId } from "../../types/models";
 import type { BuildingLocationOption } from "../../data/mock/buildingLocations";
-import { ALL_BUILDING_SCOPE_ID } from "../../data/mock/buildingLocations";
+import {
+  ACTIVE_FLOOR_ID,
+  ALL_BUILDING_SCOPE_ID,
+  DEMO_FLOOR_2_ID,
+} from "../../data/mock/buildingLocations";
 
 type BuildingFloorSelectorProps = {
   locations: readonly BuildingLocationOption[];
@@ -53,7 +57,11 @@ export default function BuildingFloorSelector({
           <option value={ALL_BUILDING_SCOPE_ID}>Toàn tòa nhà</option>
           {selectedLocation.floors.map((floor) => (
             <option key={floor.id} value={floor.id}>
-              {floor.name}{floor.dataAvailability === "not-configured" ? " · Chưa có dữ liệu" : " · Simulation"}
+              {floor.name}{floor.dataAvailability === "not-configured"
+                ? " · Chưa có dữ liệu"
+                : floor.id === DEMO_FLOOR_2_ID
+                  ? " · Dữ liệu mẫu tĩnh"
+                  : floor.id === ACTIVE_FLOOR_ID ? " · Telemetry mô phỏng" : " · Dữ liệu mô phỏng"}
             </option>
           ))}
         </select>
