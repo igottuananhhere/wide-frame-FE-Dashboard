@@ -9,6 +9,7 @@ import {
   Info,
 } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
+import { resolveAlertPriority } from "../../features/twin/twinSelectors";
 import type { TwinAlert } from "../../features/twin/types";
 import type { EntityId } from "../../types/models";
 
@@ -105,16 +106,20 @@ export default function IncidentsPopover({
     };
   }, []);
 
-  // Sort alerts: critical first, then active before acknowledged, then newest
+  // Sort alerts: high priority (critical, controller/utility offline, maintenance due) first, then active before acknowledged, then newest
   const sortedAlerts = useMemo(() => {
     return [...alerts].sort((first, second) => {
       const getPriorityRank = (alert: TwinAlert) => {
         const isCritical = alert.severity === "critical" || alert.kind === "critical";
+        const priority = resolveAlertPriority(alert);
         const isMaintenance = alert.kind === "maintenance";
         const isActive = alert.status === "active";
-        if (isCritical) return isActive ? 0 : 1;
-        if (isMaintenance) return isActive ? 4 : 5;
-        return isActive ? 2 : 3;
+        if (priority === "high") {
+          if (isCritical) return isActive ? 0 : 2;
+          return isActive ? 1 : 3;
+        }
+        if (isMaintenance) return isActive ? 6 : 7;
+        return isActive ? 4 : 5;
       };
       const rankDiff = getPriorityRank(first) - getPriorityRank(second);
       return rankDiff || second.occurredAt - first.occurredAt;
@@ -199,12 +204,11 @@ export default function IncidentsPopover({
               <ul className="alerts-popover-list" aria-label="Danh sách sự cố cần xử lý">
                 {sortedAlerts.map((alert) => {
                   const isCritical = alert.severity === "critical" || alert.kind === "critical";
+                  const isHighPriority = resolveAlertPriority(alert) === "high";
                   const isMaintenance = alert.kind === "maintenance";
-                  const itemModifier = isCritical
+                  const itemModifier = isHighPriority
                     ? "alerts-popover-item--critical"
-                    : isMaintenance
-                      ? "alerts-popover-item--maintenance"
-                      : "alerts-popover-item--warning";
+                    : "alerts-popover-item--warning";
 
                   return (
                     <li

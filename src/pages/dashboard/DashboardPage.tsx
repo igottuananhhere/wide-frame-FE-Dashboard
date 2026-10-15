@@ -4,7 +4,8 @@ import { useOutletContext } from "react-router-dom";
 import AlertItem from "../../components/dashboard/AlertItem";
 import TableScrollHint from "../../components/common/TableScrollHint";
 import ScopedDashboardLink from "../../components/common/ScopedDashboardLink";
-import AssetExceptionTable from "../../components/dashboard/AssetExceptionTable";
+import BuildingFloorSelector from "../../components/layout/BuildingFloorSelector";
+import AssetExceptionsSection from "../../components/dashboard/AssetExceptionsSection";
 import SimulationControlPanel from "../../components/dashboard/SimulationControlPanel";
 import Floor1MapPanel from "../../components/floor/Floor1MapPanel";
 import KpiCard from "../../components/dashboard/KpiCard";
@@ -15,14 +16,19 @@ import { useAuthStore } from "../../features/auth/authStore";
 import { canControlDevice } from "../../features/auth/permissions";
 import { buildAreaEnvironmentReadings } from "../../features/environment/environmentSelectors";
 import { floor1EnvironmentThresholds } from "../../data/mock/floor1Environment.mock";
-import { floor1EnergyComparison } from "../../data/mock/floor1EnergyDetail.mock";
+import { floor1EnergyComparison, floor1HourlyEnergyThresholdConfig } from "../../data/mock/floor1EnergyDetail.mock";
 import { floor1MonthlyEnergyForecast } from "../../data/mock/energyForecast.mock";
 import { floor2MonthlyEnergyForecast } from "../../data/mock/floor2EnergyDetail.mock";
-import { ACTIVE_FLOOR_ID, ALL_BUILDING_SCOPE_ID, DEMO_FLOOR_2_ID } from "../../data/mock/buildingLocations";
+import { ACTIVE_FLOOR_ID, ALL_BUILDING_SCOPE_ID, BUILDING_LOCATIONS, DEMO_FLOOR_2_ID } from "../../data/mock/buildingLocations";
 import BuildingOverviewPage from "./BuildingOverviewPage";
 import FloorNoDataState from "../../components/common/FloorNoDataState";
 import type { DashboardLocationContextValue } from "../../features/building/types";
-import { buildAssetExceptions, buildAttentionQueue, buildEnvironmentSummary, buildOverviewKpis } from "../../features/twin/twinSelectors";
+import {
+  buildAssetExceptions,
+  buildAttentionQueue,
+  buildEnvironmentSummary,
+  buildOverviewKpis,
+} from "../../features/twin/twinSelectors";
 import { calculateEnergyTotal, calculateEnergyWaste, formatEnergyCostVnd } from "../../features/energy/energySelectors";
 import { floor2EnergyComparison } from "../../data/mock/floor2EnergyDetail.mock";
 import { useDashboardScopeData } from "../../features/building/useDashboardScope";
@@ -32,11 +38,11 @@ import { formatTelemetryTime, getDataFreshnessPresentation } from "../../feature
 const EnergyChart = lazy(() => import("../../components/dashboard/EnergyChart"));
 
 const kpiRoutes: Record<string, string> = {
+  "device-health": "/dashboard/devices",
+  alerts: "/dashboard/incidents",
+  environment: "/dashboard/environment",
   "energy-today": "/dashboard/energy",
   "energy-waste": "/dashboard/energy",
-  "device-health": "/dashboard/devices",
-  environment: "/dashboard/environment",
-  alerts: "/dashboard/incidents",
 };
 
 export default function DashboardPage() {
@@ -59,17 +65,24 @@ export default function DashboardPage() {
 
 function FloorOverviewPage({ floorId, floorName }: { floorId: string; floorName: string }) {
   const scope = useDashboardScopeData();
-  const { rooms, alerts, devices, airQualityByRoom } = scope;
+  const { location, selectedBuilding, rooms, alerts, devices, sensors, airQualityByRoom, energyDeviceReadings } = scope;
+  const events = useTwinStore((state) => state.events);
+  const acknowledgeAlert = useTwinStore((state) => state.acknowledgeAlert);
+  const floors = selectedBuilding?.floors ?? BUILDING_LOCATIONS[0]?.floors ?? [];
   const automaticTelemetryRunning = useTwinStore((state) => state.automaticTelemetryRunning);
   const lastUpdatedByFloor = useTwinStore((state) => state.lastUpdatedByFloor);
   const energyHistoryByFloor = useTwinStore((state) => state.energyHistoryByFloor);
+  const hourlyDeviceReadingsByFloor = useTwinStore((state) => state.hourlyDeviceReadingsByFloor);
   const energyChartSource = floorId === DEMO_FLOOR_2_ID ? "dated-sample" : "current-day";
   const energyChartData = energyHistoryByFloor[floorId] ?? [];
+  const hourlyDeviceReadings = hourlyDeviceReadingsByFloor[floorId] ?? [];
   const freshness = getDataFreshnessPresentation(floorId, automaticTelemetryRunning);
   const scopedUpdatedAt = freshness.updatedFloorId
     ? lastUpdatedByFloor[freshness.updatedFloorId]
     : undefined;
+  const referenceNow = scopedUpdatedAt ?? lastUpdatedByFloor[ACTIVE_FLOOR_ID] ?? 0;
   const role = useAuthStore((state) => state.role);
+  const canAck = canControlDevice(role);
   const environmentReadings = useMemo(
     () => buildAreaEnvironmentReadings(rooms, airQualityByRoom, floor1EnvironmentThresholds),
     [rooms, airQualityByRoom],
@@ -79,6 +92,7 @@ function FloorOverviewPage({ floorId, floorName }: { floorId: string; floorName:
     [environmentReadings],
   );
   const energyTotalKwh = calculateEnergyTotal(rooms);
+  const baselineDateFormatted = floor1MonthlyEnergyForecast.readingDate.split("-").reverse().join("/");
   const overviewKpis = useMemo(() => {
     const summary = buildOverviewKpis(rooms, alerts, environment, floorId === DEMO_FLOOR_2_ID
       ? floor2EnergyComparison.yesterdayKwh
@@ -90,24 +104,27 @@ function FloorOverviewPage({ floorId, floorName }: { floorId: string; floorName:
       floor1MonthlyEnergyForecast.baselineTodayKwh,
       floor1MonthlyEnergyForecast.averageRateVndPerKwh,
     );
+    const hasReliableExcess = waste.excessKwh > 0;
+
     return [...summary, {
       id: "energy-waste",
       label: "Điện lãng phí (ước tính)",
-      value: `${waste.excessKwh.toFixed(1)} kWh`,
+      value: hasReliableExcess ? `${waste.excessKwh.toFixed(1)} kWh` : "Chưa đủ dữ liệu",
       icon: "energy" as const,
-      details: [
-        { label: `${formatEnergyCostVnd(waste.estimatedCostVnd)} · mức demo`, tone: waste.excessKwh > 0 ? "warning" as const : "online" as const },
-        { label: `Baseline mẫu ${floor1MonthlyEnergyForecast.baselineTodayKwh.toFixed(1)} kWh · ${floor1MonthlyEnergyForecast.readingDate.split("-").reverse().join("/")}` },
-      ],
+      details: hasReliableExcess
+        ? [
+            { label: `${formatEnergyCostVnd(waste.estimatedCostVnd)} · mức demo`, tone: "warning" as const },
+            { label: `Vượt baseline mẫu ${floor1MonthlyEnergyForecast.baselineTodayKwh.toFixed(1)} kWh · ngày ${baselineDateFormatted}` },
+          ]
+        : [
+            { label: "Tạm tính: 0.0 kWh · 0 VND", tone: "normal" as const },
+            { label: `Thiếu baseline theo giờ · Baseline mẫu ${floor1MonthlyEnergyForecast.baselineTodayKwh.toFixed(1)} kWh (${baselineDateFormatted})` },
+          ],
     }];
-  }, [rooms, alerts, environment, floorId, energyTotalKwh]);
-  const attentionQueue = useMemo(() => buildAttentionQueue(alerts), [alerts]);
+  }, [rooms, alerts, environment, floorId, energyTotalKwh, baselineDateFormatted]);
+
+  const attentionQueue = useMemo(() => buildAttentionQueue(alerts, referenceNow), [alerts, referenceNow]);
   const assetExceptions = useMemo(() => buildAssetExceptions(devices, rooms), [devices, rooms]);
-  const energyTotal = `${energyTotalKwh.toFixed(1)} kWh`;
-  const yesterdayEnergy = floorId === DEMO_FLOOR_2_ID
-    ? floor2EnergyComparison.yesterdayKwh
-    : floor1EnergyComparison.yesterdayKwh;
-  const energyChangePercent = ((energyTotalKwh / yesterdayEnergy) - 1) * 100;
   const highestEnergyArea = [...rooms].sort((first, second) => second.energyConsumption - first.energyConsumption)[0];
 
   return (
@@ -116,7 +133,9 @@ function FloorOverviewPage({ floorId, floorName }: { floorId: string; floorName:
         <div className="overview-heading-copy">
           <div className="dashboard-breadcrumb">ICS Digital Twin <span>/</span> {floorName}</div>
           <h1 id="overview-title">Tổng quan vận hành {floorName}</h1>
-          <p>{floorId === DEMO_FLOOR_2_ID ? "Dữ liệu mẫu tĩnh · không cập nhật trực tiếp" : "Trạng thái khu vực và thiết bị · dữ liệu mô phỏng"}</p>
+          {floorId === DEMO_FLOOR_2_ID && (
+            <p>Dữ liệu mẫu tĩnh · không cập nhật trực tiếp</p>
+          )}
         </div>
         <div className="overview-heading-actions">
           <span className={`overview-live overview-live--${freshness.mode}`} role="status" aria-label={freshness.ariaLabel}>
@@ -140,6 +159,12 @@ function FloorOverviewPage({ floorId, floorName }: { floorId: string; floorName:
           >
             Mở Digital Twin 3D <ArrowUpRight aria-hidden="true" size={16} />
           </a>
+          <BuildingFloorSelector
+            buildingId={location.buildingId}
+            floorId={location.floorId}
+            locations={location.locations}
+            onLocationChange={location.onLocationChange}
+          />
         </div>
       </header>
 
@@ -150,17 +175,31 @@ function FloorOverviewPage({ floorId, floorName }: { floorId: string; floorName:
       {canControlDevice(role) && floorId === ACTIVE_FLOOR_ID && <SimulationControlPanel />}
 
       <div className="overview-primary-grid overview-primary-grid--map-first">
-        <section className="overview-panel attention-panel" aria-labelledby="attention-title">
+        <section className="overview-panel attention-panel building-attention-panel" aria-labelledby="attention-title">
           <header className="overview-panel-heading">
             <div>
-              <p className="section-eyebrow">ƯU TIÊN XỬ LÝ</p>
+              <p className="section-eyebrow">ƯU TIÊN XỬ LÝ · {floorName.toUpperCase()}</p>
               <h2 id="attention-title">Sự cố chưa giải quyết</h2>
             </div>
             <span className="attention-total">{attentionQueue.length}</span>
           </header>
-          <div className="attention-list">
-            {attentionQueue.map((item) => <AlertItem item={item} key={item.id} />)}
-          </div>
+          {attentionQueue.length > 0 ? (
+            <div className="attention-list building-attention-list">
+              {attentionQueue.map((item) => (
+                <AlertItem
+                  item={item}
+                  key={item.id}
+                  canAcknowledge={canAck}
+                  onAcknowledge={acknowledgeAlert}
+                />
+              ))}
+            </div>
+          ) : (
+            <p className="building-empty-state">Không có sự cố chưa giải quyết trong phạm vi tầng này.</p>
+          )}
+          <ScopedDashboardLink className="building-panel-link" to="/dashboard/incidents">
+            Mở danh sách sự cố <ArrowUpRight aria-hidden="true" size={14} />
+          </ScopedDashboardLink>
         </section>
 
         {floorId === ACTIVE_FLOOR_ID
@@ -172,12 +211,8 @@ function FloorOverviewPage({ floorId, floorName }: { floorId: string; floorName:
         <section className="overview-panel energy-panel" aria-labelledby="energy-title">
           <header className="overview-panel-heading">
             <div>
-            <p className="section-eyebrow">ĐIỆN NĂNG LŨY KẾ · kWh</p>
-              <h2 id="energy-title">Tổng quan năng lượng</h2>
-            </div>
-            <div className="energy-total">
-              <strong>{energyTotal}</strong>
-              <span>{energyChangePercent > 0 ? "+" : ""}{energyChangePercent.toFixed(1)}%</span>
+              <p className="section-eyebrow">TỔNG QUAN NĂNG LƯỢNG · {floorName.toUpperCase()} (kWh TRONG MỖI GIỜ)</p>
+              <h2 id="energy-title">Điện năng tiêu thụ theo giờ</h2>
             </div>
           </header>
           <Suspense fallback={<div className="energy-chart energy-chart--loading" role="status">Đang tải biểu đồ năng lượng…</div>}>
@@ -185,12 +220,20 @@ function FloorOverviewPage({ floorId, floorName }: { floorId: string; floorName:
               data={energyChartData}
               source={energyChartSource}
               scopeLabel={floorName}
+              mode="hourly"
               sampleDate={energyChartSource === "dated-sample" ? floor2MonthlyEnergyForecast.readingDate : undefined}
+              snapshotTotalKwh={energyTotalKwh}
+              lastUpdatedAt={scopedUpdatedAt}
+              isPaused={freshness.mode === "paused"}
+              thresholdConfig={floor1HourlyEnergyThresholdConfig}
+              hourlyDeviceReadings={hourlyDeviceReadings}
+              devices={devices}
+              rooms={rooms}
             />
           </Suspense>
           <div className="energy-highest-area">
-            <span>Khu vực tiêu thụ cao nhất</span>
-            <strong>{highestEnergyArea?.name ?? "—"}</strong>
+            <span>Khu vực tiêu thụ cao nhất (lũy kế 00:00–17:00)</span>
+            <strong>{highestEnergyArea ? `${highestEnergyArea.name} (${highestEnergyArea.energyConsumption.toFixed(1)} kWh)` : "—"}</strong>
           </div>
         </section>
 
@@ -220,19 +263,23 @@ function FloorOverviewPage({ floorId, floorName }: { floorId: string; floorName:
         </section>
       </div>
 
-      <section className="overview-panel asset-exceptions-panel" aria-labelledby="asset-exceptions-title">
-        <header className="overview-panel-heading">
-          <div>
-            <p className="section-eyebrow">THIẾT BỊ & BẢO TRÌ · {floorName.toUpperCase()}</p>
-            <h2 id="asset-exceptions-title">Tài sản cần xử lý</h2>
-          </div>
-          <ScopedDashboardLink className="panel-text-link" to="/dashboard/assets">Tất cả tài sản <ArrowUpRight aria-hidden="true" size={14} /></ScopedDashboardLink>
-        </header>
-        <AssetExceptionTable items={assetExceptions} />
-      </section>
+      <AssetExceptionsSection
+        items={assetExceptions}
+        alerts={alerts}
+        devices={devices}
+        sensors={sensors}
+        rooms={rooms}
+        floors={floors}
+        energyReadings={energyDeviceReadings}
+        events={events}
+        buildingName={selectedBuilding?.building.name ?? "ICS Headquarters"}
+        eyebrow={`THIẾT BỊ & BẢO TRÌ · ${floorName.toUpperCase()} (${assetExceptions.length} TÀI SẢN)`}
+        footnote={`Danh sách gồm ${assetExceptions.length} thiết bị/tài sản có trạng thái bất thường hoặc cần bảo trì tại ${floorName} (không tính cảm biến TEMP-04 tại Meeting Room 02 vì thiết bị vẫn online bình thường, chỉ chỉ số môi trường CO₂ vượt ngưỡng).`}
+      />
     </section>
   );
 }
+
 
 function FloorRoomStatusTable({ floorName, rooms }: { floorName: string; rooms: readonly FloorRoomSnapshot[] }) {
   const statusLabels = { normal: "Bình thường", warning: "Cần chú ý", critical: "Critical", offline: "Offline" } as const;

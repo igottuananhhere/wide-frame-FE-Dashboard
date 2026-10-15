@@ -121,6 +121,41 @@ export function resolveAssetPriority(
   return "unclassified";
 }
 
+export function resolveAssetPriorityReason(
+  item: AssetException,
+  context?: PriorityResolutionContext,
+): string {
+  const priority = resolveAssetPriority(item, context);
+  const isController = item.type.toLowerCase().includes("controller") || item.type.toLowerCase().includes("điều khiển");
+  const isCriticalArea = item.area.toLowerCase().includes("utility") || item.area.toLowerCase().includes("server");
+
+  if (priority === "high") {
+    if (item.status === "offline" && (isController || isCriticalArea)) {
+      return "Bộ điều khiển (Controller) tại phòng kỹ thuật trọng yếu mất kết nối — ảnh hưởng giám sát toàn khu vực.";
+    }
+    if (item.issue === "Đến hạn bảo trì" || item.maintenanceHoursRemaining === 0) {
+      return "Thiết bị đã hết giờ vận hành định mức (0h còn lại), cần bảo trì ngay.";
+    }
+    return "Trạng thái nguy cấp hoặc vượt giới hạn vận hành an toàn.";
+  }
+
+  if (priority === "medium") {
+    if (item.status === "offline") {
+      return "Cảm biến nhánh (Sensor) mất kết nối cục bộ — các thiết bị khác trong khu vực vẫn hoạt động.";
+    }
+    if (item.issue === "Sắp đến hạn bảo trì") {
+      return "Sắp đến kỳ bảo trì định kỳ, thiết bị vẫn đang hoạt động ổn định.";
+    }
+    return "Cần kiểm tra theo dõi định kỳ.";
+  }
+
+  if (priority === "low") {
+    return "Hạng mục kiểm tra định kỳ mức độ thấp.";
+  }
+
+  return "Chưa đủ thông tin phân loại ưu tiên.";
+}
+
 export interface GroupedAssets {
   high: AssetException[];
   medium: AssetException[];
@@ -141,9 +176,11 @@ export function groupAssetsByPriority(
 
   for (const item of items) {
     const priority = resolveAssetPriority(item, context);
+    const priorityReason = item.priorityReason ?? resolveAssetPriorityReason(item, context);
     groups[priority].push({
       ...item,
       priority,
+      priorityReason,
     });
   }
 
@@ -163,3 +200,4 @@ export function getAssetTimeInfo(item: AssetException): string | null {
   }
   return null;
 }
+

@@ -132,4 +132,63 @@ describe("Floor 1 interactive map", () => {
     expect(window.location.pathname).toBe("/dashboard/overview");
   });
 
+  it("renders room-specific quick controls in the right 1/3 column overlaying the attention panel outside the map container", async () => {
+    await openFloorOneDashboard();
+
+    const mapPanel = screen.getByRole("region", { name: "Sơ đồ vận hành Floor 1" });
+    const attentionPanel = screen.getByRole("region", { name: "Sự cố chưa giải quyết" });
+    const primaryGrid = mapPanel.closest(".overview-primary-grid");
+    expect(primaryGrid).toBeTruthy();
+    expect(primaryGrid?.contains(attentionPanel)).toBe(true);
+
+    // Default state: closed
+    expect(screen.queryByRole("complementary", { name: /details/i })).toBeNull();
+
+    // Select Server Room -> has both lights and air conditioners
+    fireEvent.click(await screen.findByRole("button", { name: /server room/i }));
+    let drawer = screen.getByRole("complementary", { name: /server room details/i });
+
+    // Must be rendered outside the map container and inside .overview-primary-grid right column
+    expect(mapPanel.contains(drawer)).toBe(false);
+    expect(primaryGrid?.contains(drawer)).toBe(true);
+
+    const lightSwitch = within(drawer).getByRole("switch", { name: /Công tắc Đèn phòng Server/i });
+    expect(lightSwitch.getAttribute("aria-checked")).toBe("true");
+    fireEvent.click(lightSwitch);
+    expect(lightSwitch.getAttribute("aria-checked")).toBe("false");
+
+    const acPowerBtn = within(drawer).getByRole("button", { name: /Nguồn Điều hòa chính xác CRAC-01/i });
+    expect(acPowerBtn.getAttribute("aria-pressed")).toBe("true");
+
+    const tempUpBtn = within(drawer).getByRole("button", { name: /Tăng nhiệt độ Điều hòa chính xác CRAC-01/i });
+    const tempDownBtn = within(drawer).getByRole("button", { name: /Giảm nhiệt độ Điều hòa chính xác CRAC-01/i });
+    expect(within(drawer).getAllByText("20°C").length).toBeGreaterThan(0);
+    fireEvent.click(tempUpBtn);
+    expect(within(drawer).getAllByText("21°C").length).toBeGreaterThan(0);
+    fireEvent.click(tempDownBtn);
+    expect(within(drawer).getAllByText("20°C").length).toBeGreaterThan(0);
+
+    const modeGroup = within(drawer).getByRole("group", { name: /Chế độ Điều hòa chính xác CRAC-01/i });
+    const dryBtn = within(modeGroup).getByRole("button", { name: "Dry" });
+    expect(dryBtn.getAttribute("aria-pressed")).toBe("false");
+    fireEvent.click(dryBtn);
+    expect(dryBtn.getAttribute("aria-pressed")).toBe("true");
+
+    // Switch to Corridor -> only has lights, no AC section
+    fireEvent.click(screen.getByRole("button", { name: /corridor/i }));
+    drawer = screen.getByRole("complementary", { name: /corridor details/i });
+    expect(within(drawer).getByRole("region", { name: "Điều khiển đèn" })).toBeTruthy();
+    expect(within(drawer).queryByRole("region", { name: "Điều khiển điều hòa" })).toBeNull();
+
+    // Switch to Khu làm việc -> has offline light WS-08 disabled
+    fireEvent.click(screen.getByRole("button", { name: /khu làm việc/i }));
+    drawer = screen.getByRole("complementary", { name: /khu làm việc details/i });
+    const offlineLightSwitch = within(drawer).getByRole("switch", { name: /Công tắc Đèn cụm bàn WS-08/i });
+    expect((offlineLightSwitch as HTMLButtonElement).disabled).toBe(true);
+
+    // Close drawer with X button
+    fireEvent.click(within(drawer).getByRole("button", { name: "Close room details" }));
+    expect(screen.queryByRole("complementary", { name: /details/i })).toBeNull();
+  }, 15000);
+
 });

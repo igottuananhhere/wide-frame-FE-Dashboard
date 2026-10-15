@@ -2,9 +2,14 @@ import { ChevronDown, LogOut, Menu } from "lucide-react";
 import { useMemo, type RefObject } from "react";
 import { Link } from "react-router-dom";
 import ICSLogo from "../common/ICSLogo";
-import BuildingFloorSelector from "./BuildingFloorSelector";
+import DemoRoleSwitcher from "./DemoRoleSwitcher";
 import IncidentsPopover from "./IncidentsPopover";
 import { useAuthStore } from "../../features/auth/authStore";
+import {
+  DEFAULT_DEMO_ROLE,
+  DEMO_ROLE_BYPASS_ENABLED,
+  getDemoRoleProfile,
+} from "../../features/auth/demoRoleMode";
 import { canControlDevice } from "../../features/auth/permissions";
 import { useTwinStore } from "../../features/twin/twinStore";
 import { ALL_BUILDING_SCOPE_ID } from "../../data/mock/buildingLocations";
@@ -12,7 +17,6 @@ import type { EntityId } from "../../types/models";
 import type { BuildingLocationOption } from "../../data/mock/buildingLocations";
 import { isUnresolvedIncident } from "../../features/alerts/alertSelectors";
 import { formatTelemetryTime, getDataFreshnessPresentation } from "../../features/building/dataFreshness";
-import type { DashboardTheme } from "../../features/theme/themePreferences";
 
 type DashboardHeaderProps = {
   locations: readonly BuildingLocationOption[];
@@ -22,8 +26,6 @@ type DashboardHeaderProps = {
   onMobileMenuToggle: () => void;
   isMobileMenuOpen: boolean;
   mobileMenuButtonRef: RefObject<HTMLButtonElement | null>;
-  theme: DashboardTheme;
-  onThemeChange: (theme: DashboardTheme) => void;
 };
 
 export default function DashboardHeader({
@@ -34,11 +36,11 @@ export default function DashboardHeader({
   onMobileMenuToggle,
   isMobileMenuOpen,
   mobileMenuButtonRef,
-  theme,
-  onThemeChange,
 }: DashboardHeaderProps) {
-  const user = useAuthStore((state) => state.user);
-  const role = useAuthStore((state) => state.role);
+  const storeUser = useAuthStore((state) => state.user);
+  const storeRole = useAuthStore((state) => state.role);
+  const role = storeRole ?? (DEMO_ROLE_BYPASS_ENABLED ? DEFAULT_DEMO_ROLE : null);
+  const user = storeUser ?? (role ? getDemoRoleProfile(role) : null);
   const logout = useAuthStore((state) => state.logout);
   const automaticTelemetryRunning = useTwinStore((state) => state.automaticTelemetryRunning);
   const setAutomaticTelemetryRunning = useTwinStore((state) => state.setAutomaticTelemetryRunning);
@@ -94,23 +96,6 @@ export default function DashboardHeader({
       </Link>
 
       <div className="dashboard-header-live">
-        <BuildingFloorSelector
-          buildingId={buildingId}
-          floorId={floorId}
-          locations={locations}
-          onLocationChange={onLocationChange}
-        />
-        <div aria-label="Chế độ giao diện" className="theme-switcher theme-switcher--header" role="group">
-          <span>Giao diện</span>
-          <div className="theme-switcher-options">
-            <button aria-pressed={theme === "light"} className="theme-switch-button" onClick={() => onThemeChange("light")} type="button">
-              Sáng
-            </button>
-            <button aria-pressed={theme === "dark"} className="theme-switch-button" onClick={() => onThemeChange("dark")} type="button">
-              Tối
-            </button>
-          </div>
-        </div>
         {freshness.mode !== "mixed" && (
           <span
             className={`live-indicator live-indicator--${freshness.mode}`}
@@ -138,6 +123,8 @@ export default function DashboardHeader({
       </div>
 
       <div className="dashboard-header-actions">
+        <DemoRoleSwitcher />
+
         <IncidentsPopover
           unresolvedAlertCount={unresolvedAlertCount}
           noFloorData={noFloorData}
@@ -152,7 +139,9 @@ export default function DashboardHeader({
             <span aria-hidden="true" className="user-avatar">{initials}</span>
             <span className="user-menu-identity">
               <span className="user-menu-name">{displayName}</span>
-              <span className="user-menu-role">{role}</span>
+              <span className="user-menu-role">
+                {DEMO_ROLE_BYPASS_ENABLED && role ? `${role} · Demo` : role}
+              </span>
             </span>
             <ChevronDown aria-hidden="true" className="user-menu-chevron" size={15} />
           </summary>

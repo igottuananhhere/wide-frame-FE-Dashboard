@@ -8,9 +8,16 @@ import {
   BUILDING_LOCATIONS,
 } from "../../data/mock/buildingLocations";
 import type { EntityId } from "../../types/models";
+import { isUnresolvedIncident } from "../../features/alerts/alertSelectors";
+import { useAuthStore } from "../../features/auth/authStore";
 import { useTwinStore } from "../../features/twin/twinStore";
 import type { DashboardLocationContextValue } from "../../features/building/types";
-import { persistDashboardTheme, readDashboardTheme } from "../../features/theme/themePreferences";
+import {
+  persistDashboardTheme,
+  persistSidebarPinned,
+  readDashboardTheme,
+  readSidebarPinned,
+} from "../../features/theme/themePreferences";
 
 const TELEMETRY_INTERVAL_MS = 3_000;
 const MOBILE_NAV_QUERY = "(max-width: 850px)";
@@ -22,7 +29,8 @@ function matchesMobileNavigationViewport(): boolean {
 }
 
 export default function DashboardLayout() {
-  const [isCollapsed, setIsCollapsed] = useState(false);
+  const [isPinned, setIsPinned] = useState(readSidebarPinned);
+  const [isHovered, setIsHovered] = useState(false);
   const [isMobileOpen, setIsMobileOpen] = useState(false);
   const [isMobileViewport, setIsMobileViewport] = useState(matchesMobileNavigationViewport);
   const [theme, setTheme] = useState(readDashboardTheme);
@@ -32,17 +40,29 @@ export default function DashboardLayout() {
   const sidebarRef = useRef<HTMLElement>(null);
   const mobileCloseButtonRef = useRef<HTMLButtonElement>(null);
   const wasMobileOpen = useRef(false);
+  const role = useAuthStore((state) => state.role);
   const automaticTelemetryRunning = useTwinStore((state) => state.automaticTelemetryRunning);
   const advanceTelemetry = useTwinStore((state) => state.advanceTelemetry);
+  const alerts = useTwinStore((state) => state.alerts);
   const requestedFloorId = searchParams.get("floorId");
   const buildingFloors = BUILDING_LOCATIONS.find((location) => location.building.id === buildingId)?.floors ?? [];
   const floorId = requestedFloorId && buildingFloors.some((floor) => floor.id === requestedFloorId)
     ? requestedFloorId
     : ALL_BUILDING_SCOPE_ID;
+  const selectedFloor = buildingFloors.find((floor) => floor.id === floorId);
+  const noFloorData = floorId !== ALL_BUILDING_SCOPE_ID && selectedFloor?.dataAvailability !== "simulation";
+  const scopedUnresolvedAlerts = alerts.filter(
+    (alert) => isUnresolvedIncident(alert) && (floorId === ALL_BUILDING_SCOPE_ID || alert.floorId === floorId),
+  );
+  const unresolvedAlertCount = scopedUnresolvedAlerts.length;
+  const hasCriticalAlerts = scopedUnresolvedAlerts.some(
+    (alert) => alert.severity === "critical" || alert.kind === "critical",
+  );
   const activeScopeLabel = floorId === ALL_BUILDING_SCOPE_ID
     ? "Toàn tòa nhà"
-    : BUILDING_LOCATIONS.find((location) => location.building.id === buildingId)?.floors
-      .find((floor) => floor.id === floorId)?.name ?? "Tầng đã chọn";
+    : selectedFloor?.name ?? "Tầng đã chọn";
+  const isExpanded = isMobileViewport ? isMobileOpen : (isPinned || isHovered);
+  const isCollapsed = !isExpanded;
 
   useEffect(() => {
     if (!automaticTelemetryRunning) return undefined;
@@ -55,11 +75,16 @@ export default function DashboardLayout() {
   }, [theme]);
 
   useEffect(() => {
+    persistSidebarPinned(isPinned);
+  }, [isPinned]);
+
+  useEffect(() => {
     if (typeof window.matchMedia !== "function") return undefined;
     const mediaQuery = window.matchMedia(MOBILE_NAV_QUERY);
     const handleViewportChange = (event: MediaQueryListEvent) => {
       setIsMobileViewport(event.matches);
-      if (!event.matches) setIsMobileOpen(false);
+      if (event.matches) setIsHovered(false);
+      else setIsMobileOpen(false);
     };
     mediaQuery.addEventListener("change", handleViewportChange);
     return () => mediaQuery.removeEventListener("change", handleViewportChange);
@@ -119,6 +144,16 @@ export default function DashboardLayout() {
     });
   };
 
+  const handleToggleCollapsed = () => {
+    setIsPinned((currentPinned) => {
+      const nextPinned = !currentPinned;
+      if (!nextPinned) {
+        setIsHovered(false);
+      }
+      return nextPinned;
+    });
+  };
+
   const locationContext: DashboardLocationContextValue = {
     buildingId,
     floorId,
@@ -127,14 +162,15 @@ export default function DashboardLayout() {
   };
 
   return (
-    <div className={`dashboard-shell dashboard-entry${isCollapsed ? " dashboard-shell--collapsed" : ""}`} data-theme={theme}>
+    <div
+      className={`dashboard-shell dashboard-entry${isCollapsed ? " dashboard-shell--collapsed" : " dashboard-shell--expanded"}${isPinned ? " dashboard-shell--pinned" : ""}${isHovered ? " dashboard-shell--hovered" : ""}`}
+      data-theme={theme}
+    >
       <DashboardHeader
         buildingId={buildingId}
         floorId={floorId}
         isMobileMenuOpen={isMobileOpen}
         mobileMenuButtonRef={mobileMenuButtonRef}
-        theme={theme}
-        onThemeChange={setTheme}
         locations={BUILDING_LOCATIONS}
         onLocationChange={handleLocationChange}
         onMobileMenuToggle={() => setIsMobileOpen((open) => !open)}
@@ -143,14 +179,23 @@ export default function DashboardLayout() {
         <DashboardSidebar
           activeScopeLabel={activeScopeLabel}
           isCollapsed={isCollapsed}
+          isPinned={isPinned}
+          isHovered={isHovered}
           isMobileOpen={isMobileOpen}
           isMobileInactive={isMobileViewport && !isMobileOpen}
           floorId={floorId}
+          role={role}
+          theme={theme}
+          onThemeChange={setTheme}
+          unresolvedAlertCount={unresolvedAlertCount}
+          hasCriticalAlerts={hasCriticalAlerts}
+          noFloorData={noFloorData}
           sidebarRef={sidebarRef}
           mobileCloseButtonRef={mobileCloseButtonRef}
           onCloseMobile={() => setIsMobileOpen(false)}
+          onHoverChange={setIsHovered}
           onOverviewClick={() => handleLocationChange(buildingId, ALL_BUILDING_SCOPE_ID)}
-          onToggleCollapsed={() => setIsCollapsed((collapsed) => !collapsed)}
+          onToggleCollapsed={handleToggleCollapsed}
         />
         {isMobileOpen && (
           <button

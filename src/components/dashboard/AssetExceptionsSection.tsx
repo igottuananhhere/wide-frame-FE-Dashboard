@@ -28,6 +28,7 @@ export interface AssetExceptionsSectionProps {
   onRetry?: () => void;
   eyebrow?: string;
   title?: string;
+  footnote?: string;
   allAssetsLink?: string;
   initialViewMode?: AssetViewMode;
   onSelectAsset?: (item: AssetException) => void;
@@ -49,6 +50,7 @@ export default function AssetExceptionsSection({
   onRetry,
   eyebrow = "THIẾT BỊ & BẢO TRÌ · TẤT CẢ TẦNG CÓ DỮ LIỆU",
   title = "Tài sản cần xử lý",
+  footnote = "Danh sách lấy từ thiết bị có trạng thái bất thường hoặc cần bảo trì ở các tầng đã cấu hình.",
   allAssetsLink = "/dashboard/assets",
   initialViewMode = "cards",
   onSelectAsset,
@@ -156,7 +158,7 @@ export default function AssetExceptionsSection({
       )}
 
       <p className="detail-panel-footnote">
-        Danh sách lấy từ thiết bị có trạng thái bất thường hoặc cần bảo trì ở các tầng đã cấu hình.
+        {footnote}
       </p>
 
       {selectedAsset && (

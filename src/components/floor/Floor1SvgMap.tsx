@@ -1,4 +1,5 @@
 import type { KeyboardEvent } from "react";
+import type { AreaEnvironmentReading } from "../../features/environment/types";
 import type { FloorRoomSnapshot, SchematicRoomGeometry } from "../../features/floor/types";
 import type { OperationalStatus } from "../../types/models";
 
@@ -12,10 +13,21 @@ const statusPresentation: Record<OperationalStatus, { label: string; symbol: str
 type Floor1SvgMapProps = {
   rooms: readonly FloorRoomSnapshot[];
   geometry: readonly SchematicRoomGeometry[];
+  environmentByRoom?: ReadonlyMap<string, AreaEnvironmentReading>;
   selectedRoomId: string | null;
   onSelectRoom: (room: FloorRoomSnapshot, trigger: SVGGElement) => void;
   onHoverRoom: (room: FloorRoomSnapshot | null) => void;
 };
+
+function resolveEffectiveStatus(
+  deviceStatus: OperationalStatus,
+  envStatus: OperationalStatus = "normal",
+): OperationalStatus {
+  if (deviceStatus === "critical" || envStatus === "critical") return "critical";
+  if (deviceStatus === "offline") return "offline";
+  if (deviceStatus === "warning" || envStatus === "warning") return "warning";
+  return "normal";
+}
 
 function handleRoomKeyDown(
   event: KeyboardEvent<SVGGElement>,
@@ -61,6 +73,7 @@ function Fixture({ fixture }: { fixture: NonNullable<SchematicRoomGeometry["fixt
 export default function Floor1SvgMap({
   rooms,
   geometry,
+  environmentByRoom,
   selectedRoomId,
   onSelectRoom,
   onHoverRoom,
@@ -111,15 +124,45 @@ export default function Floor1SvgMap({
         </g>
 
         {geometryByRoom.map(({ room, item }) => {
-          const status = statusPresentation[room.status];
+          const envReading = environmentByRoom?.get(room.id);
+          const envStatus = envReading?.status ?? "normal";
+          const effectiveStatus = resolveEffectiveStatus(room.status, envStatus);
+          const devicePresentation = statusPresentation[room.status];
+          const effectivePresentation = statusPresentation[effectiveStatus];
+          const envPresentation = statusPresentation[envStatus];
+          const hasEnvWarningOnly = room.status === "normal" && envStatus !== "normal";
+          const hasBothWarnings = room.status !== "normal" && envStatus !== "normal";
+
+          const stateLine = hasEnvWarningOnly
+            ? `${envPresentation.symbol} MÔI TRƯỜNG: ${envPresentation.label}`
+            : hasBothWarnings
+              ? `${effectivePresentation.symbol} TB: ${devicePresentation.label} · MT: ${envPresentation.label}`
+              : `${effectivePresentation.symbol} ${effectivePresentation.label}`;
+
+          const metricsLine = hasEnvWarningOnly && envReading
+            ? `CO₂ ${envReading.co2Ppm.toLocaleString("en-US")} ppm · TB: BÌNH THƯỜNG (${room.onlineDeviceCount}/${room.deviceCount})`
+            : `${room.temperature.toFixed(1)}°C · ${room.onlineDeviceCount}/${room.deviceCount} ONLINE`;
+
           const selected = selectedRoomId === room.id;
           const points = item.boundary.map(({ x, y }) => x + "," + y).join(" ");
-          const ariaLabel = room.name + ", " + status.label + ". " + room.temperature.toFixed(1) + " degrees Celsius, " + room.deviceCount + " devices.";
+          const ariaLabel = hasEnvWarningOnly
+            ? `${room.name}, ${envPresentation.label} (Môi trường: ${envPresentation.label} · CO₂ ${envReading?.co2Ppm ?? 0} ppm; Thiết bị: ${room.name}, ${devicePresentation.label}). ${room.temperature.toFixed(1)} degrees Celsius, ${room.deviceCount} devices.`
+            : `${room.name}, ${effectivePresentation.label}. ${room.temperature.toFixed(1)} degrees Celsius, ${room.deviceCount} devices.`;
+
+          const xs = item.boundary.map((point) => point.x);
+          const roomBoundsWidth = Math.max(...xs) - Math.min(...xs);
+          const desiredPlateWidth = hasEnvWarningOnly || hasBothWarnings ? 210 : 184;
+          const plateWidth = Math.min(desiredPlateWidth, Math.max(140, roomBoundsWidth - 16));
 
           return (
             <g
               key={room.id}
-              className={"floor-room-region floor-room-region--" + room.status + (selected ? " is-selected" : "")}
+              className={
+                "floor-room-region floor-room-region--" +
+                effectiveStatus +
+                (hasEnvWarningOnly ? " floor-room-region--env-warning" : "") +
+                (selected ? " is-selected" : "")
+              }
               role="button"
               tabIndex={0}
               aria-label={ariaLabel}
@@ -131,17 +174,25 @@ export default function Floor1SvgMap({
               onFocus={() => onHoverRoom(room)}
               onBlur={() => onHoverRoom(null)}
             >
-              <title>{room.name + " · " + status.label + " · " + room.temperature.toFixed(1) + "°C"}</title>
+              <title>{`${room.name} · ${stateLine} · ${room.temperature.toFixed(1)}°C`}</title>
               <polygon className="floor-room-boundary" points={points} />
               {selected && <polygon className="floor-room-selection" points={points} />}
+              <rect
+                className="floor-room-label-plate"
+                x={item.label.x - plateWidth / 2}
+                y={item.label.y - 22}
+                width={plateWidth}
+                height={78}
+                rx={8}
+              />
               <text className="floor-room-name" x={item.label.x} y={item.label.y} textAnchor="middle">
                 {room.name}
               </text>
-              <text className="floor-room-state" x={item.label.x} y={item.label.y + 26} textAnchor="middle">
-                {status.symbol} {status.label}
+              <text className="floor-room-state" x={item.label.x} y={item.label.y + 24} textAnchor="middle">
+                {stateLine}
               </text>
-              <text className="floor-room-metrics" x={item.label.x} y={item.label.y + 48} textAnchor="middle">
-                {room.temperature.toFixed(1)}°C · {room.onlineDeviceCount}/{room.deviceCount} ONLINE
+              <text className="floor-room-metrics" x={item.label.x} y={item.label.y + 44} textAnchor="middle">
+                {metricsLine}
               </text>
             </g>
           );
@@ -150,3 +201,4 @@ export default function Floor1SvgMap({
     </div>
   );
 }
+

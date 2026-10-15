@@ -242,10 +242,11 @@ describe("Phase 6 detail monitoring modules", () => {
     expect(within(attention).getByText("Đang xử lý")).toBeTruthy();
   });
 
-  it("replaces the mixed-source badge with the building/floor filter on building scope", async () => {
+  it("places the building/floor filter in the page header across tabs instead of the topbar", async () => {
     await openPage("/dashboard/overview");
 
-    expect(document.querySelector(".dashboard-header-live .building-floor-selector")).toBeTruthy();
+    expect(document.querySelector(".overview-heading-actions .building-floor-selector")).toBeTruthy();
+    expect(document.querySelector(".dashboard-header-live .building-floor-selector")).toBeNull();
     expect(document.querySelector(".dashboard-header-location")).toBeNull();
     expect(document.querySelector(".dashboard-header .live-indicator")).toBeNull();
     expect(document.querySelector(".dashboard-header .last-sync time")?.getAttribute("aria-label"))
@@ -294,6 +295,9 @@ describe("Phase 6 detail monitoring modules", () => {
     const assetLink = screen.getByRole("link", { name: "Xem hồ sơ tài sản: AC-03" });
     expect(assetLink.getAttribute("href")).toBe("/dashboard/assets?assetId=asset-ac-03&floorId=ics-headquarters-floor-1");
     fireEvent.click(assetLink);
+
+    const fullProfileLink = await screen.findByRole("link", { name: /mở hồ sơ đầy đủ/i });
+    fireEvent.click(fullProfileLink);
 
     expect(await screen.findByRole("heading", { name: /tài sản & bảo trì · floor 1/i })).toBeTruthy();
     expect(screen.getByRole("status", { name: /asset profile ac-03/i })).toBeTruthy();

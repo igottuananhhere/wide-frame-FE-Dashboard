@@ -93,7 +93,7 @@ describe("mock realtime dashboard flow", () => {
     fireEvent.click(screen.getByRole("button", { name: "SIMULATE EVENT" }));
 
     expect(screen.getByRole("heading", { name: "AC-03 đến hạn bảo trì" })).toBeTruthy();
-    expect(screen.getByRole("row", { name: /AC-03.*warning.*đến hạn bảo trì/i })).toBeTruthy();
+    expect(screen.getByRole("button", { name: /AC-03 - Đến hạn bảo trì/i })).toBeTruthy();
     expect(screen.getByRole("article", { name: "Sự cố chưa giải quyết" })
       .querySelector(".kpi-card-value")?.textContent).toBe("4");
   });

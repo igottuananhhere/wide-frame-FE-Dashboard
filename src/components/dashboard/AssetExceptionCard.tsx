@@ -70,6 +70,10 @@ export default function AssetExceptionCard({ item, onSelect }: AssetExceptionCar
         <span className="facility-asset-card-issue">{item.issue}</span>
       </div>
 
+      {item.priorityReason && (
+        <p className="facility-asset-card-reason">{item.priorityReason}</p>
+      )}
+
       {timeInfo && (
         <div className="facility-asset-card-time">
           <Clock3 aria-hidden="true" size={12} />

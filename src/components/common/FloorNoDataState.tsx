@@ -1,4 +1,7 @@
 import { ArrowLeft, Layers3 } from "lucide-react";
+import { useOutletContext } from "react-router-dom";
+import type { DashboardLocationContextValue } from "../../features/building/types";
+import BuildingFloorSelector from "../layout/BuildingFloorSelector";
 
 type FloorNoDataStateProps = {
   floorName: string;
@@ -6,8 +9,25 @@ type FloorNoDataStateProps = {
 };
 
 export default function FloorNoDataState({ floorName, onBackToBuilding }: FloorNoDataStateProps) {
+  const location = useOutletContext<DashboardLocationContextValue | undefined>();
+
   return (
     <section className="dashboard-page floor-no-data-page" aria-labelledby="floor-no-data-title">
+      {location && (
+        <header className="floor-no-data-header">
+          <div className="overview-heading-copy">
+            <div className="dashboard-breadcrumb">ICS Digital Twin <span>/</span> {floorName}</div>
+          </div>
+          <div className="overview-heading-actions">
+            <BuildingFloorSelector
+              buildingId={location.buildingId}
+              floorId={location.floorId}
+              locations={location.locations}
+              onLocationChange={location.onLocationChange}
+            />
+          </div>
+        </header>
+      )}
       <article className="floor-no-data-card">
         <span className="floor-no-data-icon" aria-hidden="true"><Layers3 size={24} /></span>
         <p className="section-eyebrow">ICS HEADQUARTERS / FLOOR STATUS</p>

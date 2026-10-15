@@ -6,7 +6,12 @@ import {
 } from "../../data/mock/buildingLocations";
 import { floor1Rooms } from "../../data/mock/floor1.mock";
 import { floor1AirQualityByRoom, floor1EnvironmentThresholds } from "../../data/mock/floor1Environment.mock";
-import { floor1DeviceEnergyReadings } from "../../data/mock/floor1EnergyDetail.mock";
+import {
+  floor1DeviceEnergyReadings,
+  floor1HourlyDeviceReadings,
+  floor1SpikeEnergyHistory,
+  floor1SpikeHourlyDeviceReadings,
+} from "../../data/mock/floor1EnergyDetail.mock";
 import { floor1EnergyToday } from "../../data/mock/floor1Overview";
 import { floor2Rooms } from "../../data/mock/floor2.mock";
 import { floor2AirQualityByRoom } from "../../data/mock/floor2Environment.mock";
@@ -22,6 +27,8 @@ import {
   floor1SimulationDevices,
   floor1SimulationSensors,
 } from "../../data/mock/twinSimulation.mock";
+import { useAuthStore } from "../auth/authStore";
+import { canControlDevice } from "../auth/permissions";
 import { combineEnergyHistoryByFloor } from "../energy/energySelectors";
 import type { FloorRoomSnapshot } from "../floor/types";
 import type { OperationalStatus } from "../../types/models";
@@ -32,6 +39,11 @@ import type {
   TwinStoreData,
   TwinStoreState,
 } from "./types";
+
+function isAuthenticatedWithoutControlPermission(): boolean {
+  const { isAuthenticated, role } = useAuthStore.getState();
+  return isAuthenticated && !canControlDevice(role);
+}
 
 const SERVER_ROOM_ID = "room-server-01";
 const TEMP_WARNING_THRESHOLD = 27;
@@ -53,9 +65,14 @@ function createInitialData(now: number): TwinStoreData {
   if (!activeLocation) throw new Error("The Floor 1 mock location is not configured.");
 
   const rooms = [...floor1Rooms, ...floor2Rooms].map((room) => ({ ...room }));
+  const floor1Id = floor1Rooms[0]?.floorId ?? "ics-headquarters-floor-1";
   const energyHistoryByFloor = {
-    [floor1Rooms[0]?.floorId ?? "ics-headquarters-floor-1"]: floor1EnergyToday.map((point) => ({ ...point })),
+    [floor1Id]: floor1EnergyToday.map((point) => ({ ...point })),
     [DEMO_FLOOR_2_ID]: floor2EnergyToday.map((point) => ({ ...point })),
+  };
+  const hourlyDeviceReadingsByFloor = {
+    [floor1Id]: floor1HourlyDeviceReadings.map((reading) => ({ ...reading })),
+    [DEMO_FLOOR_2_ID]: [],
   };
   const initialAlerts = [...createFloor1SimulationAlerts(now), ...createFloor2SimulationAlerts(now)];
   const energyFloorIds = Object.keys(energyHistoryByFloor);
@@ -76,6 +93,7 @@ function createInitialData(now: number): TwinStoreData {
     airQualityByRoom: [...floor1AirQualityByRoom, ...floor2AirQualityByRoom].map((reading) => ({ ...reading })),
     energyHistory: combineEnergyHistoryByFloor(energyHistoryByFloor, energyFloorIds),
     energyHistoryByFloor,
+    hourlyDeviceReadingsByFloor,
     lastUpdatedByFloor: { [ACTIVE_FLOOR_ID]: now },
     energyDeviceReadings: [...floor1DeviceEnergyReadings, ...floor2DeviceEnergyReadings].map((reading) => ({ ...reading })),
     alerts: initialAlerts,
@@ -474,6 +492,7 @@ export const useTwinStore = create<TwinStoreState>((set, get) => ({
   }),
 
   acknowledgeAlert: (alertId) => set((state) => {
+    if (isAuthenticatedWithoutControlPermission()) return state;
     if (!state.alerts.some((alert) => alert.id === alertId && alert.status === "active")) return state;
     const timestamp = nextTimestamp(state.lastUpdated);
     return {
@@ -548,6 +567,37 @@ export const useTwinStore = create<TwinStoreState>((set, get) => ({
 
     if (scenario === "meeting-room-02-co2-high") {
       get().updateAirQuality("room-meeting-02", { co2Ppm: 1_600 });
+      return;
+    }
+
+    if (scenario === "hourly-energy-spike") {
+      const timestamp = nextTimestamp(get().lastUpdated);
+      set((state) => {
+        const nextEnergyHistoryByFloor = {
+          ...state.energyHistoryByFloor,
+          [ACTIVE_FLOOR_ID]: floor1SpikeEnergyHistory.map((point) => ({ ...point })),
+        };
+        const nextHourlyDeviceReadingsByFloor = {
+          ...state.hourlyDeviceReadingsByFloor,
+          [ACTIVE_FLOOR_ID]: floor1SpikeHourlyDeviceReadings.map((reading) => ({ ...reading })),
+        };
+        const rooms = state.rooms.map((room) => room.id === "room-workspace-01"
+          ? { ...room, energyConsumption: Number((room.energyConsumption + 3.1).toFixed(1)) }
+          : room);
+        const energyDeviceReadings = state.energyDeviceReadings.map((reading) => reading.deviceId === "device-ac-03"
+          ? { ...reading, energyKwh: Number((reading.energyKwh + 3.1).toFixed(1)) }
+          : reading);
+
+        return {
+          rooms,
+          energyDeviceReadings,
+          energyHistoryByFloor: nextEnergyHistoryByFloor,
+          energyHistory: combineEnergyHistoryByFloor(nextEnergyHistoryByFloor, Object.keys(nextEnergyHistoryByFloor)),
+          hourlyDeviceReadingsByFloor: nextHourlyDeviceReadingsByFloor,
+          lastUpdated: timestamp,
+          lastUpdatedByFloor: updateFloorTimestamp(state.lastUpdatedByFloor, ACTIVE_FLOOR_ID, timestamp),
+        };
+      });
       return;
     }
 

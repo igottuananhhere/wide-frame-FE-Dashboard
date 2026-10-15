@@ -19,14 +19,25 @@ export interface KpiSummary {
 
 export type AttentionKind = "critical" | "warning" | "maintenance";
 
+export type AttentionPriority = "high" | "medium";
+
+export type IncidentCategory = "device" | "environment" | "maintenance";
+
 export interface AttentionEntry {
   id: string;
   kind: AttentionKind;
+  priority?: AttentionPriority;
+  priorityReason?: string;
+  category?: IncidentCategory;
   status: Extract<AlertStatus, "active" | "acknowledged">;
   title: string;
   location?: string;
   reading?: string;
   occurredAt: string;
+  occurredAtMs?: number;
+  roomId?: string;
+  deviceId?: string;
+  assetId?: string;
 }
 
 export interface EnergyPoint {
@@ -51,7 +62,9 @@ export interface AssetException {
   issue: string;
   actionLabel: string;
   priority?: "high" | "medium" | "low" | "unclassified";
+  priorityReason?: string;
   maintenanceHoursRemaining?: number;
   lastSeenAt?: string;
 }
+
 

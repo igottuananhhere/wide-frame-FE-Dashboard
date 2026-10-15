@@ -9,7 +9,8 @@ export interface UserProfile {
 export type AuthPermission =
   | "canViewDashboard"
   | "canViewAssets"
-  | "canControlDevice";
+  | "canControlDevice"
+  | "canManageSettings";
 
 export type LoginResult =
   | { success: true }

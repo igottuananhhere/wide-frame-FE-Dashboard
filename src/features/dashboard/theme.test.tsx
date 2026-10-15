@@ -38,16 +38,36 @@ describe("dashboard color theme", () => {
     expect(document.querySelector(".dashboard-shell")?.getAttribute("data-theme")).toBe("dark");
   });
 
-  it("switches between light and dark and persists the selected mode", async () => {
+  it("renders the compact icon theme switcher at the bottom of the sidebar (removed from topbar) and persists the selected mode", async () => {
     render(<App />);
-    expect(screen.getByRole("group", { name: "Chế độ giao diện" })).toBeTruthy();
-    expect(document.querySelector(".dashboard-header-live .theme-switcher")).toBeTruthy();
-    expect(document.querySelector(".dashboard-user-menu .theme-switcher")).toBeNull();
-    fireEvent.click(screen.getByRole("button", { name: "Sáng" }));
 
+    const themeGroup = screen.getByRole("group", { name: "Chế độ giao diện" });
+    expect(themeGroup).toBeTruthy();
+    expect(document.querySelector(".dashboard-header-live .theme-switcher")).toBeNull();
+    expect(document.querySelector(".dashboard-user-menu .theme-switcher")).toBeNull();
+    expect(document.querySelector(".dashboard-sidebar .sidebar-theme-section .theme-switcher--sidebar")).toBeTruthy();
+
+    const lightButton = screen.getByRole("button", { name: "Chế độ sáng" });
+    const darkButton = screen.getByRole("button", { name: "Chế độ tối" });
+    expect(lightButton.getAttribute("title")).toBe("Chế độ sáng");
+    expect(darkButton.getAttribute("title")).toBe("Chế độ tối");
+    expect(lightButton.textContent).toBe("");
+    expect(darkButton.textContent).toBe("");
+    expect(darkButton.getAttribute("aria-pressed")).toBe("true");
+    expect(lightButton.getAttribute("aria-pressed")).toBe("false");
+
+    // Switch to Light Mode while sidebar is collapsed
+    fireEvent.click(lightButton);
     expect(document.querySelector(".dashboard-shell")?.getAttribute("data-theme")).toBe("light");
     expect(localStorage.getItem(THEME_STORAGE_KEY)).toBe("light");
-    expect(screen.getByRole("button", { name: "Sáng" }).getAttribute("aria-pressed")).toBe("true");
+    expect(lightButton.getAttribute("aria-pressed")).toBe("true");
+    expect(darkButton.getAttribute("aria-pressed")).toBe("false");
+
+    // Hover-expand sidebar and verify theme switcher state is preserved without flicker
+    const sidebar = screen.getByLabelText("Application sidebar");
+    fireEvent.mouseEnter(sidebar);
+    expect(sidebar.getAttribute("data-collapsed")).toBe("false");
+    expect(screen.getByRole("button", { name: "Chế độ sáng" }).getAttribute("aria-pressed")).toBe("true");
 
     cleanup();
     await act(async () => {
@@ -56,14 +76,15 @@ describe("dashboard color theme", () => {
     render(<App />);
     expect(document.querySelector(".dashboard-shell")?.getAttribute("data-theme")).toBe("light");
 
-    fireEvent.click(screen.getByRole("button", { name: "Tối" }));
+    fireEvent.click(screen.getByRole("button", { name: "Chế độ tối" }));
     expect(document.querySelector(".dashboard-shell")?.getAttribute("data-theme")).toBe("dark");
     expect(localStorage.getItem(THEME_STORAGE_KEY)).toBe("dark");
+    expect(screen.getByRole("button", { name: "Chế độ tối" }).getAttribute("aria-pressed")).toBe("true");
   }, 15000);
 
   it("provides light theme styling for environment attention areas, building stack and chart", async () => {
     render(<App />);
-    fireEvent.click(screen.getByRole("button", { name: "Sáng" }));
+    fireEvent.click(screen.getByRole("button", { name: "Chế độ sáng" }));
     expect(document.querySelector(".dashboard-shell")?.getAttribute("data-theme")).toBe("light");
 
     // Verify building overview elements are rendered and accessible

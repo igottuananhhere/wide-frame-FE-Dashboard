@@ -8,6 +8,7 @@ const scenarios: readonly { id: SimulationScenario; label: string }[] = [
   { id: "temp-04-offline", label: "TEMP-04 Sensor Offline" },
   { id: "ac-03-maintenance-due", label: "AC-03 Maintenance Due" },
   { id: "meeting-room-02-co2-high", label: "Meeting Room 02 CO₂ High" },
+  { id: "hourly-energy-spike", label: "Hourly Energy Spike 16.5 kWh (Dữ liệu mô phỏng)" },
   { id: "return-normal", label: "Return System To Normal" },
 ];
 

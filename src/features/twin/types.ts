@@ -10,7 +10,7 @@ import type {
 import type { AttentionKind } from "../dashboard/types";
 import type { FloorRoomSnapshot } from "../floor/types";
 import type { EnergyPoint } from "../dashboard/types";
-import type { DeviceEnergyReading } from "../energy/types";
+import type { DeviceEnergyReading, DeviceHourlyEnergyReading } from "../energy/types";
 import type { RoomAirQualityReading } from "../environment/types";
 
 export type SimulationScenario =
@@ -18,6 +18,7 @@ export type SimulationScenario =
   | "temp-04-offline"
   | "ac-03-maintenance-due"
   | "meeting-room-02-co2-high"
+  | "hourly-energy-spike"
   | "return-normal";
 
 export type SimulationConnectionStatus = "simulation-live" | "simulation-paused";
@@ -120,6 +121,7 @@ export interface TwinStoreData {
   airQualityByRoom: RoomAirQualityReading[];
   energyHistory: EnergyPoint[];
   energyHistoryByFloor: Record<EntityId, EnergyPoint[]>;
+  hourlyDeviceReadingsByFloor: Record<EntityId, DeviceHourlyEnergyReading[]>;
   lastUpdatedByFloor: Partial<Record<EntityId, number>>;
   energyDeviceReadings: DeviceEnergyReading[];
   alerts: TwinAlert[];

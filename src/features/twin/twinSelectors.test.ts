@@ -84,5 +84,56 @@ describe("buildAttentionQueue priority and auto-jumping to top", () => {
 
     const updatedQueue = buildAttentionQueue([criticalEvent, ...existingAlerts]);
     expect(updatedQueue[0].id).toBe("critical-fire");
+    expect(updatedQueue[0].priority).toBe("high");
+  });
+
+  it("pushes high-priority incidents (controller/utility offline and overdue maintenance) ahead of medium-priority warnings", () => {
+    const alerts: TwinAlert[] = [
+      makeAlert({
+        id: "alert-meeting-02-co2-high",
+        title: "CO₂ Meeting Room 02 vượt ngưỡng",
+        location: "Meeting Room 02",
+        reading: "CO₂ · 1100 ppm / ngưỡng 1,000 ppm",
+        occurredAt: 4000,
+      }),
+      makeAlert({
+        id: "alert-workspace-sensor-offline",
+        title: "Sensor WS-08 mất kết nối",
+        location: "Khu làm việc",
+        reading: "WS-08 · Offline",
+        occurredAt: 3000,
+      }),
+      makeAlert({
+        id: "alert-utility-controller-offline",
+        title: "Bộ điều khiển Utility Room mất kết nối",
+        location: "Utility Room",
+        roomId: "room-utility-01",
+        deviceId: "device-utility-01",
+        reading: "UT-01 · Offline",
+        occurredAt: 2000,
+      }),
+      makeAlert({
+        id: "alert-ac-03-maintenance-window",
+        title: "AC-03 sắp đến hạn bảo trì",
+        kind: "maintenance",
+        location: "Khu làm việc",
+        reading: "Còn 12 giờ vận hành",
+        occurredAt: 1000,
+      }),
+    ];
+
+    const queue = buildAttentionQueue(alerts, 5000);
+    expect(queue.map((item) => item.id)).toEqual([
+      "alert-utility-controller-offline",
+      "alert-meeting-02-co2-high",
+      "alert-workspace-sensor-offline",
+      "alert-ac-03-maintenance-window",
+    ]);
+    expect(queue.map((item) => item.priority)).toEqual([
+      "high",
+      "medium",
+      "medium",
+      "medium",
+    ]);
   });
 });

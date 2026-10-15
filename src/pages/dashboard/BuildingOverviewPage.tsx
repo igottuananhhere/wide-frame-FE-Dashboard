@@ -5,12 +5,15 @@ import AssetExceptionsSection from "../../components/dashboard/AssetExceptionsSe
 import BuildingStackPanel from "../../components/dashboard/BuildingStackPanel";
 import DetailStatCard from "../../components/dashboard/DetailStatCard";
 import ScopedDashboardLink from "../../components/common/ScopedDashboardLink";
+import BuildingFloorSelector from "../../components/layout/BuildingFloorSelector";
 import MetricCard from "../../components/dashboard/MetricCard";
 import StatusBadge from "../../components/dashboard/StatusBadge";
 import { ACTIVE_FLOOR_ID, BUILDING_LOCATIONS, DEMO_FLOOR_2_ID } from "../../data/mock/buildingLocations";
 import { floor1EnvironmentThresholds } from "../../data/mock/floor1Environment.mock";
 import { floor1EnergyComparison } from "../../data/mock/floor1EnergyDetail.mock";
 import { floor2EnergyComparison, floor2MonthlyEnergyForecast } from "../../data/mock/floor2EnergyDetail.mock";
+import { useAuthStore } from "../../features/auth/authStore";
+import { canControlDevice } from "../../features/auth/permissions";
 import { buildAreaEnvironmentReadings } from "../../features/environment/environmentSelectors";
 import { buildAssetExceptions, buildAttentionQueue, buildEnvironmentSummary } from "../../features/twin/twinSelectors";
 import { isUnresolvedIncident } from "../../features/alerts/alertSelectors";
@@ -24,6 +27,9 @@ export default function BuildingOverviewPage() {
   const scope = useDashboardScopeData();
   const { location, selectedBuilding, dataFloors, rooms, devices, sensors, alerts, airQualityByRoom, energyDeviceReadings } = scope;
   const events = useTwinStore((state) => state.events);
+  const acknowledgeAlert = useTwinStore((state) => state.acknowledgeAlert);
+  const role = useAuthStore((state) => state.role);
+  const canAck = canControlDevice(role);
   const automaticTelemetryRunning = useTwinStore((state) => state.automaticTelemetryRunning);
   const lastUpdatedByFloor = useTwinStore((state) => state.lastUpdatedByFloor);
   const energyHistoryByFloor = useTwinStore((state) => state.energyHistoryByFloor);
@@ -82,6 +88,12 @@ export default function BuildingOverviewPage() {
             </time>
           )}
           <span className="building-coverage-pill"><Building2 aria-hidden="true" size={15} /> {dataFloors.length}/{floors.length} tầng có dữ liệu</span>
+          <BuildingFloorSelector
+            buildingId={location.buildingId}
+            floorId={location.floorId}
+            locations={location.locations}
+            onLocationChange={location.onLocationChange}
+          />
         </div>
       </header>
 
@@ -103,7 +115,14 @@ export default function BuildingOverviewPage() {
           </header>
           {attentionQueue.length > 0 ? (
             <div className="attention-list building-attention-list">
-              {attentionQueue.map((item) => <AlertItem item={item} key={item.id} />)}
+              {attentionQueue.map((item) => (
+                <AlertItem
+                  item={item}
+                  key={item.id}
+                  canAcknowledge={canAck}
+                  onAcknowledge={acknowledgeAlert}
+                />
+              ))}
             </div>
           ) : (
             <p className="building-empty-state">Không có sự cố chưa giải quyết trong phạm vi có dữ liệu.</p>

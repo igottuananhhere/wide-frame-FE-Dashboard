@@ -1,7 +1,9 @@
-import { act, cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen, within } from "@testing-library/react";
+import { MemoryRouter } from "react-router-dom";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import App from "../../app/App";
 import { router } from "../../app/router";
+import LoginPage from "../../pages/auth/LoginPage";
 import { AUTH_SESSION_STORAGE_KEY, useAuthStore } from "./authStore";
 import { canControlDevice, canViewAssets, canViewDashboard } from "./permissions";
 import { useLoginTransitionStore } from "./loginTransitionStore";
@@ -47,29 +49,35 @@ afterEach(() => {
   useLoginTransitionStore.setState({ isTransitioning: false });
 });
 
-describe("mock authentication flows", () => {
-  it("shows the ICS branded login experience", async () => {
+describe("direct dashboard access and header role switching (Demo Mode)", () => {
+  it("bypasses the login screen on /login and enters the Dashboard directly", async () => {
     await openRoute("/login");
 
-    const icsLogo = await screen.findByRole("img", { name: /ics digital twin logo/i });
-    expect(icsLogo.textContent).toContain("ICS");
-    expect(screen.getByRole("heading", { name: /welcome back/i })).toBeTruthy();
-    expect(screen.getByRole("status").textContent).toMatch(/platform online/i);
+    expect(await waitForOverview()).toBeTruthy();
+    expect(screen.queryByLabelText(/username/i)).toBeNull();
+    expect(screen.queryByLabelText(/^password$/i)).toBeNull();
+    expect(useAuthStore.getState().role).toBe("Admin");
+
+    const headerSwitcher = screen.getByRole("group", { name: /chuyển đổi nhanh vai trò admin và viewer/i });
+    expect(within(headerSwitcher).getByRole("button", { name: "Admin" })).toBeTruthy();
+    expect(within(headerSwitcher).getByRole("button", { name: "Viewer" })).toBeTruthy();
   });
 
-  it("redirects unauthenticated dashboard access to login", async () => {
+  it("opens /dashboard/overview directly without requiring authentication", async () => {
     await openRoute("/dashboard/overview");
 
-    expect(await screen.findByLabelText(/username/i)).toBeTruthy();
+    expect(await waitForOverview()).toBeTruthy();
+    expect(useAuthStore.getState().role).toBe("Admin");
   });
 
-  it("redirects the dashboard root to login when unauthenticated", async () => {
+  it("opens /dashboard root directly into the overview dashboard", async () => {
     await openRoute("/dashboard");
 
-    expect(await screen.findByLabelText(/username/i)).toBeTruthy();
+    expect(await waitForOverview()).toBeTruthy();
+    expect(useAuthStore.getState().role).toBe("Admin");
   });
 
-  it("renders the reusable dashboard shell with the signed-in user", async () => {
+  it("renders the reusable dashboard shell with the signed-in user and header role switcher", async () => {
     useAuthStore.setState({
       user: { username: "admin", displayName: "ICS Platform Administrator", role: "Admin" },
       role: "Admin",
@@ -81,11 +89,12 @@ describe("mock authentication flows", () => {
     expect(screen.getAllByText("ICS Platform Administrator").length).toBeGreaterThan(0);
     expect(screen.getByText("Admin", { exact: true })).toBeTruthy();
     expect(document.querySelector(".dashboard-header .live-indicator")).toBeNull();
-    expect(document.querySelector(".dashboard-header-live .building-floor-selector")).toBeTruthy();
+    expect(document.querySelector(".overview-heading-actions .building-floor-selector")).toBeTruthy();
+    expect(document.querySelector(".dashboard-header-live .building-floor-selector")).toBeNull();
     expect(document.querySelector(".dashboard-header-location")).toBeNull();
     expect(document.querySelector(".dashboard-header .last-sync time")?.getAttribute("aria-label"))
       .toBe("Floor 1 telemetry last updated");
-    expect((screen.getByRole("combobox", { name: "Building" }) as HTMLSelectElement).value).toBe("ics-headquarters");
+    expect(screen.queryByRole("combobox", { name: "Building" })).toBeNull();
     expect((screen.getByRole("combobox", { name: "Floor" }) as HTMLSelectElement).value)
       .toBe("ics-headquarters-all-floors");
     expect(screen.getByRole("navigation", { name: "Dashboard navigation" })
@@ -95,8 +104,34 @@ describe("mock authentication flows", () => {
     }
 
     const sidebar = screen.getByLabelText("Application sidebar");
+    expect(sidebar.className).toContain("dashboard-sidebar--collapsed");
+    fireEvent.click(screen.getByRole("button", { name: /expand sidebar/i }));
+    expect(sidebar.className).toContain("dashboard-sidebar--pinned");
     fireEvent.click(screen.getByRole("button", { name: /collapse sidebar/i }));
     expect(sidebar.className).toContain("dashboard-sidebar--collapsed");
+  }, 15000);
+
+  it("switches roles immediately via the Header Admin/Viewer buttons", async () => {
+    await openRoute("/dashboard/overview");
+    expect(await waitForOverview()).toBeTruthy();
+
+    const headerSwitcher = screen.getByRole("group", { name: /chuyển đổi nhanh vai trò admin và viewer/i });
+    const adminBtn = within(headerSwitcher).getByRole("button", { name: "Admin" });
+    const viewerBtn = within(headerSwitcher).getByRole("button", { name: "Viewer" });
+
+    expect(adminBtn.getAttribute("aria-pressed")).toBe("true");
+    expect(viewerBtn.getAttribute("aria-pressed")).toBe("false");
+
+    fireEvent.click(viewerBtn);
+    expect(useAuthStore.getState().role).toBe("Viewer");
+    expect(viewerBtn.getAttribute("aria-pressed")).toBe("true");
+    expect(adminBtn.getAttribute("aria-pressed")).toBe("false");
+    expect(screen.getAllByText("ICS Dashboard Viewer").length).toBeGreaterThan(0);
+
+    fireEvent.click(adminBtn);
+    expect(useAuthStore.getState().role).toBe("Admin");
+    expect(adminBtn.getAttribute("aria-pressed")).toBe("true");
+    expect(screen.getAllByText("ICS Platform Administrator").length).toBeGreaterThan(0);
   }, 15000);
 
   it("keeps the Digital Twin 3D route as a placeholder inside the dashboard shell", async () => {
@@ -114,91 +149,12 @@ describe("mock authentication flows", () => {
     expect(screen.getByRole("banner")).toBeTruthy();
   }, 15000);
 
-  it.each([
-    ["admin", "admin123", "Admin"],
-    ["viewer", "viewer123", "Viewer"],
-  ])("allows %s to access the dashboard", async (username, password, role) => {
-    await openRoute("/login");
-    await submitCredentials(username, password);
-
-    expect(
-      await waitForOverview(),
-    ).toBeTruthy();
-    fireEvent.click(screen.getByLabelText(/user menu for/i));
-    expect(screen.getByText(role, { exact: true })).toBeTruthy();
-    expect(useLoginTransitionStore.getState().isTransitioning).toBe(true);
-  }, 15000);
-
-  it("allows keyboard users to reveal and hide the password", async () => {
-    await openRoute("/login");
-    const passwordInput = screen.getByLabelText(/^password$/i);
-
-    expect(passwordInput.getAttribute("type")).toBe("password");
-    fireEvent.click(screen.getByRole("button", { name: /show password/i }));
-    expect(passwordInput.getAttribute("type")).toBe("text");
-    fireEvent.click(screen.getByRole("button", { name: /hide password/i }));
-    expect(passwordInput.getAttribute("type")).toBe("password");
-  });
-
-  it("submits the login form and exposes its loading state", async () => {
-    await openRoute("/login");
-    fireEvent.change(screen.getByLabelText(/username/i), {
-      target: { value: "admin" },
-    });
-    fireEvent.change(screen.getByLabelText(/^password$/i), {
-      target: { value: "admin123" },
-    });
-    const form = screen.getByLabelText(/username/i).closest("form");
-
-    expect(form).not.toBeNull();
-    fireEvent.submit(form!);
-    expect(screen.getByText(/signing in/i)).toBeTruthy();
-    expect(
-      await waitForOverview(),
-    ).toBeTruthy();
-    expect(useLoginTransitionStore.getState().isTransitioning).toBe(true);
-  });
-
-  it("shows an error for invalid credentials", async () => {
-    await openRoute("/login");
-    await submitCredentials("admin", "wrong-password");
-
-    const errorMessage = await screen.findByRole("alert");
-    expect(errorMessage.textContent).toMatch(/invalid username or password/i);
-    expect(useLoginTransitionStore.getState().isTransitioning).toBe(false);
-  });
-
-  it("returns to login after logout", async () => {
-    useAuthStore.setState({
-      user: { username: "viewer", displayName: "ICS Platform Viewer", role: "Viewer" },
-      role: "Viewer",
-      isAuthenticated: true,
-    });
+  it("rehydrates selected role from session storage after refresh", async () => {
     await openRoute("/dashboard/overview");
-    fireEvent.click(await screen.findByLabelText(/user menu for/i));
-    fireEvent.click(await screen.findByRole("button", { name: /sign out/i }));
-
-    expect(await screen.findByLabelText(/username/i)).toBeTruthy();
-    expect(sessionStorage.getItem(AUTH_SESSION_STORAGE_KEY)).toBeNull();
-  });
-
-  it("redirects an authenticated user away from login", async () => {
-    await openRoute("/login");
-    await submitCredentials("admin", "admin123");
     await waitForOverview();
-    await act(async () => {
-      await router.navigate("/login");
-    });
 
-    expect(
-      await waitForOverview(),
-    ).toBeTruthy();
-  });
-
-  it("rehydrates mock authentication from session storage after refresh", async () => {
-    await openRoute("/login");
-    await submitCredentials("viewer", "viewer123");
-    await waitForOverview();
+    const headerSwitcher = screen.getByRole("group", { name: /chuyển đổi nhanh vai trò admin và viewer/i });
+    fireEvent.click(within(headerSwitcher).getByRole("button", { name: "Viewer" }));
 
     const savedSession = sessionStorage.getItem(AUTH_SESSION_STORAGE_KEY);
     expect(savedSession).toContain("Viewer");
@@ -210,10 +166,27 @@ describe("mock authentication flows", () => {
       await router.navigate("/dashboard/overview");
     });
 
-    expect(
-      await waitForOverview(),
-    ).toBeTruthy();
-    expect(screen.getByText("Viewer", { exact: true })).toBeTruthy();
+    expect(await waitForOverview()).toBeTruthy();
+    expect(useAuthStore.getState().role).toBe("Viewer");
+  });
+
+  it("preserves the formal LoginPage component for future authentication rollout", async () => {
+    render(
+      <MemoryRouter initialEntries={["/login"]}>
+        <LoginPage />
+      </MemoryRouter>,
+    );
+
+    const passwordInput = screen.getByLabelText(/^password$/i);
+    expect(passwordInput.getAttribute("type")).toBe("password");
+    fireEvent.click(screen.getByRole("button", { name: /show password/i }));
+    expect(passwordInput.getAttribute("type")).toBe("text");
+    fireEvent.click(screen.getByRole("button", { name: /hide password/i }));
+    expect(passwordInput.getAttribute("type")).toBe("password");
+
+    await submitCredentials("admin", "wrong-password");
+    const errorMessage = await screen.findByRole("alert");
+    expect(errorMessage.textContent).toMatch(/invalid username or password/i);
   });
 
   it("applies the Admin and Viewer permission matrix", () => {
@@ -228,3 +201,4 @@ describe("mock authentication flows", () => {
     expect(canControlDevice(null)).toBe(false);
   });
 });
+

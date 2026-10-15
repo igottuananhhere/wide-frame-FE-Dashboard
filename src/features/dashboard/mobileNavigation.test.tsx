@@ -77,11 +77,11 @@ describe("mobile navigation accessibility", () => {
     fireEvent.click(menuButton);
     const sidebar = screen.getByLabelText("Application sidebar");
     const closeButton = within(sidebar).getByRole("button", { name: "Close sidebar" });
-    const lastLink = within(sidebar).getByRole("link", { name: "Mô hình 3D" });
+    const lastFocusable = within(sidebar).getByRole("button", { name: "Chế độ tối" });
 
-    lastLink.focus();
-    const tabForward = createEvent.keyDown(lastLink, { key: "Tab" });
-    fireEvent(lastLink, tabForward);
+    lastFocusable.focus();
+    const tabForward = createEvent.keyDown(lastFocusable, { key: "Tab" });
+    fireEvent(lastFocusable, tabForward);
     expect(tabForward.defaultPrevented).toBe(true);
     expect(document.activeElement).toBe(closeButton);
 
@@ -89,6 +89,6 @@ describe("mobile navigation accessibility", () => {
     const tabBackward = createEvent.keyDown(closeButton, { key: "Tab", shiftKey: true });
     fireEvent(closeButton, tabBackward);
     expect(tabBackward.defaultPrevented).toBe(true);
-    expect(document.activeElement).toBe(lastLink);
+    expect(document.activeElement).toBe(lastFocusable);
   });
 });
