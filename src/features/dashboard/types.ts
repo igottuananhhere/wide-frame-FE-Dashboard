@@ -35,6 +35,7 @@ export interface AttentionEntry {
   reading?: string;
   occurredAt: string;
   occurredAtMs?: number;
+  floorId?: string;
   roomId?: string;
   deviceId?: string;
   assetId?: string;

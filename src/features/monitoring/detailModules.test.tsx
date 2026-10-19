@@ -342,4 +342,20 @@ describe("Phase 6 detail monitoring modules", () => {
     expect(screen.getByRole("link", { name: /xem hồ sơ tài sản: ac-03/i }).getAttribute("href"))
       .toBe("/dashboard/assets?assetId=asset-ac-03&floorId=ics-headquarters-floor-1");
   });
+
+  it("reconciles building energy across 2/5 floors and blocks mismatched yesterday comparison", async () => {
+    await openPage("/dashboard/energy", "ics-headquarters-all-floors");
+
+    expect(await screen.findByRole("heading", { name: "Năng lượng toàn tòa nhà" })).toBeTruthy();
+    expect(screen.getAllByText(/Tổng hợp tầng 1 và tầng 2 · 2\/5 tầng có dữ liệu/i).length).toBeGreaterThan(0);
+    expect(screen.getByText("266.6 kWh")).toBeTruthy();
+    expect(screen.getByText("Không đủ dữ liệu để so sánh")).toBeTruthy();
+    expect(screen.queryByRole("region", { name: /điện năng tiêu thụ theo tầng/i })).toBeNull();
+
+    // Correlated alerts link area and device in the same room without filter buttons
+    const alertRegion = screen.getByRole("region", { name: /tiêu thụ bất thường/i });
+    expect(within(alertRegion).getAllByText(/Khu vực & thiết bị có liên hệ/i).length).toBeGreaterThan(0);
+    expect(within(alertRegion).queryByRole("button", { name: /xem thiết bị khu vực/i })).toBeNull();
+  }, 15000);
 });
+

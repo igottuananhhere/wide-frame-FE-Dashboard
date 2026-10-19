@@ -129,7 +129,24 @@ export default function DashboardLayout() {
     return () => document.removeEventListener("keydown", handleNavigationKeyDown);
   }, [isMobileOpen, isMobileViewport]);
 
+  const isInvalidFloorParam = Boolean(
+    requestedFloorId
+      && requestedFloorId !== ALL_BUILDING_SCOPE_ID
+      && !buildingFloors.some((floor) => floor.id === requestedFloorId),
+  );
+
+  const clearInvalidFloorParam = () => {
+    setSearchParams((current) => {
+      const next = new URLSearchParams(current);
+      next.delete("floorId");
+      return next;
+    });
+  };
+
   const handleLocationChange = (nextBuildingId: EntityId, nextFloorId: EntityId) => {
+    if (nextBuildingId !== buildingId || nextFloorId !== floorId) {
+      useTwinStore.getState().selectRoom(null);
+    }
     setBuildingId(nextBuildingId);
     setSearchParams((current) => {
       const next = new URLSearchParams(current);
@@ -208,6 +225,20 @@ export default function DashboardLayout() {
           />
         )}
         <main className="dashboard-main" id="dashboard-main" tabIndex={-1}>
+          {isInvalidFloorParam && (
+            <div className="dashboard-invalid-param-banner" role="status">
+              <span>
+                Tham số tầng trên URL không hợp lệ ({requestedFloorId}) — hệ thống đã đưa về Tổng quan toàn tòa nhà.
+              </span>
+              <button
+                type="button"
+                className="dashboard-invalid-param-clear-btn"
+                onClick={clearInvalidFloorParam}
+              >
+                Xóa tham số lỗi
+              </button>
+            </div>
+          )}
           <Outlet context={locationContext} />
         </main>
       </div>

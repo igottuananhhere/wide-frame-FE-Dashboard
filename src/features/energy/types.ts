@@ -45,17 +45,31 @@ export interface EnergyComparison {
 export interface EnergyAreaRow {
   roomId: EntityId;
   floorId: EntityId;
+  floorName?: string;
   name: string;
   energyKwh: number;
+  thresholdKwh?: number;
+  excessKwh?: number;
   abnormal: boolean;
+  sampledDeviceCount?: number;
+  totalDeviceCount?: number;
+  sampledDevicesKwh?: number;
+  unmonitoredRoomKwh?: number;
 }
 
 export interface EnergyDeviceRow {
   deviceId: EntityId;
+  assetId?: EntityId;
+  roomId?: EntityId;
+  floorId?: EntityId;
+  floorName?: string;
   name: string;
   type: string;
   roomName: string;
   energyKwh: number;
+  thresholdKwh?: number;
+  excessKwh?: number;
+  shareOfRoomPercent?: number;
   abnormal: boolean;
 }
 
@@ -77,6 +91,11 @@ export interface MonthlyEnergyForecast {
   meterId: EntityId;
   currentPeriodLabel: string;
   readingDate: string;
+  lastUpdatedTimeLabel?: string;
+  scopeSummaryLabel?: string;
+  elapsedDays: number;
+  daysInBillingPeriod: number;
+  dailyAverageKwh: number;
   adjustedMonthToDateKwh: number;
   projectedKwh: number;
   projectedCostVnd: number;

@@ -11,8 +11,8 @@ export const floor1Rooms: readonly FloorRoomSnapshot[] = [
     temperature: 25.2,
     humidity: 54,
     energyConsumption: 8.4,
-    deviceCount: 2,
-    onlineDeviceCount: 2,
+    deviceCount: 3,
+    onlineDeviceCount: 3,
     offlineDeviceCount: 0,
   },
   {
@@ -35,8 +35,8 @@ export const floor1Rooms: readonly FloorRoomSnapshot[] = [
     temperature: 25.4,
     humidity: 61,
     energyConsumption: 23.4,
-    deviceCount: 4,
-    onlineDeviceCount: 4,
+    deviceCount: 5,
+    onlineDeviceCount: 5,
     offlineDeviceCount: 0,
   },
   {
@@ -47,8 +47,8 @@ export const floor1Rooms: readonly FloorRoomSnapshot[] = [
     temperature: 25.4,
     humidity: 56,
     energyConsumption: 5.1,
-    deviceCount: 1,
-    onlineDeviceCount: 1,
+    deviceCount: 3,
+    onlineDeviceCount: 3,
     offlineDeviceCount: 0,
   },
   {

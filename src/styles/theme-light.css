@@ -470,6 +470,80 @@
 .dashboard-shell[data-theme="light"] .detail-panel-footnote { color: #536975; }
 .dashboard-shell[data-theme="light"] .overview-period { border-color: #cad8de; background: #edf3f5; color: #405762; }
 .dashboard-shell[data-theme="light"] .overview-period svg { color: #087f93; }
+.dashboard-shell[data-theme="light"] .overview-period-btn:hover,
+.dashboard-shell[data-theme="light"] .overview-period-btn[aria-expanded="true"] {
+  border-color: #93cbd7;
+  background: #e3f1f5;
+  color: #172830;
+}
+.dashboard-shell[data-theme="light"] .overview-period-btn.is-filtered {
+  border-color: #0891b2;
+  background: #e0f2fe;
+  color: #075985;
+  box-shadow: 0 0 0 1px rgb(8 145 178 / 15%);
+}
+.dashboard-shell[data-theme="light"] .overview-calendar-popover {
+  border-color: #e2e8f0;
+  background: #ffffff;
+  box-shadow: 0 18px 40px rgb(15 23 42 / 12%), 0 2px 6px rgb(15 23 42 / 5%);
+}
+.dashboard-shell[data-theme="light"] .overview-calendar-title {
+  color: #111827;
+}
+.dashboard-shell[data-theme="light"] .overview-calendar-nav-btn {
+  border-color: #e2e8f0;
+  background: #ffffff;
+  color: #64748b;
+}
+.dashboard-shell[data-theme="light"] .overview-calendar-nav-btn:hover {
+  border-color: #cbd5e1;
+  background: #f8fafc;
+  color: #0f172a;
+}
+.dashboard-shell[data-theme="light"] .overview-calendar-weekdays span {
+  color: #8896a6;
+}
+.dashboard-shell[data-theme="light"] .overview-calendar-day {
+  color: #111827;
+}
+.dashboard-shell[data-theme="light"] .overview-calendar-day:hover {
+  background: #f1f5f9;
+}
+.dashboard-shell[data-theme="light"] .overview-calendar-day.is-outside {
+  color: #9ca3af;
+}
+.dashboard-shell[data-theme="light"] .overview-calendar-day.is-today:not(.is-selected) {
+  background: #f3f4f6;
+  color: #111827;
+}
+.dashboard-shell[data-theme="light"] .overview-calendar-today-bar {
+  background: #9ca3af;
+}
+.dashboard-shell[data-theme="light"] .overview-calendar-day.is-in-range {
+  background: #e6f2ff;
+  color: #0066dc;
+}
+.dashboard-shell[data-theme="light"] .overview-calendar-day.is-selected {
+  background: #007aff;
+  color: #ffffff !important;
+  box-shadow: 0 3px 10px rgb(0 122 255 / 30%);
+}
+.dashboard-shell[data-theme="light"] .overview-calendar-footer {
+  border-top-color: #f1f5f9;
+}
+.dashboard-shell[data-theme="light"] .overview-calendar-range-hint {
+  color: #64748b;
+}
+.dashboard-shell[data-theme="light"] .overview-calendar-reset-btn {
+  border-color: #bfdbfe;
+  background: #eff6ff;
+  color: #007aff;
+}
+.dashboard-shell[data-theme="light"] .overview-calendar-reset-btn:hover {
+  border-color: #007aff;
+  background: #007aff;
+  color: #ffffff;
+}
 .dashboard-shell[data-theme="light"] .overview-live--live { border-color: #b8dccb; background: #e9f6ef; color: #126642; }
 .dashboard-shell[data-theme="light"] .overview-live--paused { border-color: #b7dce4; background: #e8f5f7; color: #075c6e; }
 .dashboard-shell[data-theme="light"] .overview-live--static,
@@ -612,8 +686,8 @@
 .dashboard-shell[data-theme="light"] .energy-row-warning { color: #8b5900; }
 .dashboard-shell[data-theme="light"] .energy-exception-symbol { border-color: #e5ce95; background: #fff5df; color: #8b5900; }
 .dashboard-shell[data-theme="light"] .energy-area-track { background: #dce7eb; }
-.dashboard-shell[data-theme="light"] .energy-exception-list > li:not(.detail-empty-state) { border-color: #e4d7b8; background: #fff8e9; }
-.dashboard-shell[data-theme="light"] .energy-exception-list li div > span { color: #566b76; }
+.dashboard-shell[data-theme="light"] .energy-exception-list > li:not(.detail-empty-state):not(.energy-correlated-alert-item) { border-color: #e4d7b8; background: #fff8e9; }
+.dashboard-shell[data-theme="light"] .energy-exception-list > li:not(.energy-correlated-alert-item) div > span { color: #566b76; }
 .dashboard-shell[data-theme="light"] .energy-chart--empty { background: #f4f7f8; color: #50636e; }
 
 .dashboard-shell[data-theme="light"] .detail-stat-card-heading svg { color: #087f93; }
@@ -1038,38 +1112,72 @@
 }
 
 .dashboard-shell[data-theme="light"] .asset-state-item strong,
+.dashboard-shell[data-theme="light"] .asset-responsibility-grid strong,
 .dashboard-shell[data-theme="light"] .asset-impact-val,
-.dashboard-shell[data-theme="light"] .asset-metric-val {
+.dashboard-shell[data-theme="light"] .asset-metric-val,
+.dashboard-shell[data-theme="light"] .status-indicator {
   color: var(--color-text-primary);
 }
 
+.dashboard-shell[data-theme="light"] .asset-state-item,
+.dashboard-shell[data-theme="light"] .asset-responsibility-grid > div,
 .dashboard-shell[data-theme="light"] .asset-issue-item,
 .dashboard-shell[data-theme="light"] .asset-impact-item,
+.dashboard-shell[data-theme="light"] .asset-metric-box,
 .dashboard-shell[data-theme="light"] .asset-metric-tile,
+.dashboard-shell[data-theme="light"] .asset-maintenance-preview,
 .dashboard-shell[data-theme="light"] .asset-cycle-box,
+.dashboard-shell[data-theme="light"] .asset-maint-detail-box,
+.dashboard-shell[data-theme="light"] .asset-history-item,
+.dashboard-shell[data-theme="light"] .asset-incident-card,
+.dashboard-shell[data-theme="light"] .asset-timeline-entry,
+.dashboard-shell[data-theme="light"] .asset-profile-table-grid > div,
+.dashboard-shell[data-theme="light"] .asset-no-identity-note,
+.dashboard-shell[data-theme="light"] .asset-rel-item,
 .dashboard-shell[data-theme="light"] .asset-rel-card {
   background: #f7fafc;
   border-color: var(--color-border);
-}
-
-.dashboard-shell[data-theme="light"] .asset-issue-title {
-  color: var(--color-text-primary);
-}
-
-.dashboard-shell[data-theme="light"] .asset-issue-desc {
   color: var(--color-text-secondary);
 }
 
+.dashboard-shell[data-theme="light"] .asset-issue-title,
+.dashboard-shell[data-theme="light"] .asset-maint-headline strong,
+.dashboard-shell[data-theme="light"] .asset-maint-row strong,
+.dashboard-shell[data-theme="light"] .asset-history-title,
+.dashboard-shell[data-theme="light"] .asset-incident-card-top strong,
+.dashboard-shell[data-theme="light"] .asset-timeline-head strong,
+.dashboard-shell[data-theme="light"] .asset-profile-table-grid strong,
+.dashboard-shell[data-theme="light"] .asset-rel-info strong {
+  color: var(--color-text-primary);
+}
+
+.dashboard-shell[data-theme="light"] .asset-issue-desc,
+.dashboard-shell[data-theme="light"] .asset-issue-msg,
+.dashboard-shell[data-theme="light"] .asset-incident-desc {
+  color: var(--color-text-secondary);
+}
+
+.dashboard-shell[data-theme="light"] .asset-jump-tab-link,
+.dashboard-shell[data-theme="light"] .asset-rel-link {
+  background: #edf6f8;
+  border-color: #b8dbe1;
+  color: #087f93;
+}
+
+.dashboard-shell[data-theme="light"] .asset-operational-table th,
 .dashboard-shell[data-theme="light"] .asset-data-table th {
   background: #edf3f6;
   color: var(--color-text-secondary);
 }
 
+.dashboard-shell[data-theme="light"] .asset-operational-table td,
 .dashboard-shell[data-theme="light"] .asset-data-table td {
   border-bottom-color: var(--color-border);
   color: var(--color-text-primary);
 }
 
+.dashboard-shell[data-theme="light"] .asset-form-group input,
+.dashboard-shell[data-theme="light"] .asset-form-group textarea,
 .dashboard-shell[data-theme="light"] .asset-textarea,
 .dashboard-shell[data-theme="light"] .asset-select {
   background: #ffffff;
@@ -1540,3 +1648,404 @@
   border-color: #d7e2e8;
   background: #ffffff;
 }
+
+.dashboard-shell[data-theme="light"] .energy-scope-status-banner {
+  border-color: #c5d8e2;
+  border-left-color: #087f93;
+  background: linear-gradient(135deg, #f2f9fb, #ffffff);
+}
+
+.dashboard-shell[data-theme="light"] .energy-scope-coverage-pill {
+  border-color: #9ad4e0;
+  background: #e4f4f7;
+  color: #075f70;
+}
+
+.dashboard-shell[data-theme="light"] .energy-scope-freshness-pill {
+  border-color: #95d5b2;
+  background: #e3f7ec;
+  color: #0d683f;
+}
+
+.dashboard-shell[data-theme="light"] .energy-scope-reconcile-pill {
+  border-color: #cbd8df;
+  background: #f5f9fb;
+  color: #3d5461;
+}
+
+.dashboard-shell[data-theme="light"] .energy-scope-status-note {
+  color: #425965;
+}
+
+.dashboard-shell[data-theme="light"] .energy-chart-mode-toggle {
+  border-color: #c8d6de;
+  background: #eef4f7;
+}
+
+.dashboard-shell[data-theme="light"] .energy-chart-mode-btn {
+  color: #4b626e;
+}
+
+.dashboard-shell[data-theme="light"] .energy-chart-mode-btn.is-active {
+  background: #ffffff;
+  color: #08778a;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+}
+
+.dashboard-shell[data-theme="light"] .energy-chart-compare-btn {
+  border-color: #c8d6de;
+  background: #ffffff;
+  color: #3b525f;
+}
+
+.dashboard-shell[data-theme="light"] .energy-chart-compare-btn.is-active {
+  border-color: #087f93;
+  background: #e6f4f7;
+  color: #075f70;
+}
+
+.dashboard-shell[data-theme="light"] .energy-floor-card {
+  border-color: #d2dee5;
+  background: #ffffff;
+}
+
+.dashboard-shell[data-theme="light"] .energy-floor-card--missing {
+  border-color: #cbd8df;
+  background: #f6f9fb;
+}
+
+.dashboard-shell[data-theme="light"] .energy-floor-card-top strong {
+  color: #192c36;
+}
+
+.dashboard-shell[data-theme="light"] .energy-floor-card-value strong {
+  color: #08778a;
+}
+
+.dashboard-shell[data-theme="light"] .energy-floor-card-value span,
+.dashboard-shell[data-theme="light"] .energy-floor-card-meta,
+.dashboard-shell[data-theme="light"] .energy-floor-card-meta small {
+  color: #526875;
+}
+
+.dashboard-shell[data-theme="light"] .energy-floor-select-btn,
+.dashboard-shell[data-theme="light"] .energy-alert-drill-btn,
+.dashboard-shell[data-theme="light"] .energy-clear-room-filter-btn {
+  border-color: #9ad4e0;
+  background: #e8f5f7;
+  color: #075f70;
+}
+
+.dashboard-shell[data-theme="light"] .energy-exception-list {
+  scrollbar-color: #b4c6d0 transparent;
+}
+
+.dashboard-shell[data-theme="light"] .energy-exception-list::-webkit-scrollbar-thumb {
+  background: #b4c6d0;
+}
+
+.dashboard-shell[data-theme="light"] .energy-exception-list > li.energy-correlated-alert-item,
+.dashboard-shell[data-theme="light"] .energy-correlated-alert-item {
+  border-color: #e5d4ae;
+  border-left-color: #d97706;
+  background: linear-gradient(135deg, #fffaf0, #ffffff);
+}
+
+.dashboard-shell[data-theme="light"] .energy-exception-list > li.energy-correlated-alert-item.is-selected,
+.dashboard-shell[data-theme="light"] .energy-correlated-alert-item.is-selected {
+  border-color: #087f93;
+  border-left-color: #087f93;
+  background: #eef8fa;
+}
+
+.dashboard-shell[data-theme="light"] .energy-correlated-alert-title > strong {
+  color: #192c36;
+}
+
+.dashboard-shell[data-theme="light"] .energy-alert-location-tag {
+  border-color: #c5d8e2;
+  background: #edf5f8;
+  color: #075f70 !important;
+}
+
+.dashboard-shell[data-theme="light"] .energy-correlated-badge {
+  border-color: #e6be70;
+  background: #fef3c7;
+  color: #92400e !important;
+}
+
+.dashboard-shell[data-theme="light"] .energy-correlated-metrics {
+  color: #334b57 !important;
+}
+
+.dashboard-shell[data-theme="light"] .energy-correlated-metrics strong {
+  color: #152833;
+}
+
+.dashboard-shell[data-theme="light"] .energy-correlated-alert-body > p,
+.dashboard-shell[data-theme="light"] .energy-correlated-explanation {
+  color: #4a606c;
+}
+
+.dashboard-shell[data-theme="light"] .energy-correlated-device-sub {
+  border-left-color: #d97706;
+  background: #fff6e0;
+  color: #7c4a03;
+}
+
+.dashboard-shell[data-theme="light"] .energy-correlated-device-sub svg {
+  color: #d97706;
+}
+
+.dashboard-shell[data-theme="light"] .energy-correlated-device-sub strong {
+  color: #5c3400;
+}
+
+.dashboard-shell[data-theme="light"] .energy-area-row:hover {
+  border-color: #cbd8df;
+  background: #f4f8fa;
+}
+
+.dashboard-shell[data-theme="light"] .energy-area-row.is-selected {
+  border-color: #087f93;
+  background: #eaf5f7;
+}
+
+.dashboard-shell[data-theme="light"] .energy-area-floor-pill {
+  border-color: #c5d8e2;
+  background: #edf5f8;
+  color: #075f70;
+}
+
+.dashboard-shell[data-theme="light"] .energy-area-reconciliation-row {
+  border-color: #cbd8df;
+  background: #f5f9fb;
+  color: #4a606c;
+}
+
+.dashboard-shell[data-theme="light"] .energy-area-reconciliation-row strong {
+  color: #192c36;
+}
+
+.dashboard-shell[data-theme="light"] .energy-device-coverage-banner {
+  border-color: #d2dee5;
+  background: #f5f9fb;
+  color: #425965;
+}
+
+.dashboard-shell[data-theme="light"] .energy-device-coverage-banner strong {
+  color: #192c36;
+}
+
+.dashboard-shell[data-theme="light"] .energy-forecast-scope-pill {
+  border-color: #9ad4e0;
+  background: #e6f4f7;
+  color: #075f70;
+}
+
+.dashboard-shell[data-theme="light"] .energy-forecast-trace {
+  color: #526875;
+}
+
+.dashboard-shell[data-theme="light"] .dashboard-invalid-param-banner,
+.dashboard-shell[data-theme="light"] .floor-map-invalid-room-banner,
+.dashboard-shell[data-theme="light"] .room-status-explanation {
+  border-color: #e6c67c;
+  border-left-color: #d97706;
+  background: #fffbeb;
+  color: #78350f;
+}
+
+.dashboard-shell[data-theme="light"] .dashboard-invalid-param-clear-btn,
+.dashboard-shell[data-theme="light"] .floor-map-invalid-room-clear-btn {
+  border-color: #d97706;
+  background: #ffffff;
+  color: #92400e;
+}
+
+.dashboard-shell[data-theme="light"] .floor-map-schematic-badge {
+  border-color: #9ad4e0;
+  background: #e6f4f7;
+  color: #075f70;
+}
+
+.dashboard-shell[data-theme="light"] .floor-map-toolbar {
+  border-color: #cbd8df;
+  background: #f4f8fa;
+}
+
+.dashboard-shell[data-theme="light"] .floor-map-toolbar-label {
+  color: #465d69;
+}
+
+.dashboard-shell[data-theme="light"] .floor-map-layer-btn,
+.dashboard-shell[data-theme="light"] .floor-map-zoom-btn {
+  border-color: #c4d2d9;
+  background: #ffffff;
+  color: #364d59;
+}
+
+.dashboard-shell[data-theme="light"] .floor-map-layer-btn.is-active {
+  border-color: #087f93;
+  background: #dff2f6;
+  color: #075b6b;
+}
+
+.dashboard-shell[data-theme="light"] .floor-map-room-directory {
+  border-top-color: #d7e1e5;
+}
+
+.dashboard-shell[data-theme="light"] .floor-map-room-directory > strong {
+  color: #243943;
+}
+
+.dashboard-shell[data-theme="light"] .floor-map-directory-item {
+  border-color: #ccd8de;
+  background: #f8fbfc;
+  color: #243943;
+}
+
+.dashboard-shell[data-theme="light"] .floor-map-directory-item:hover,
+.dashboard-shell[data-theme="light"] .floor-map-directory-item:focus-visible {
+  border-color: #087f93;
+  background: #eef7f9;
+}
+
+.dashboard-shell[data-theme="light"] .floor-map-directory-item.is-selected {
+  border-color: #087f93;
+  background: #dff2f6;
+}
+
+.dashboard-shell[data-theme="light"] .floor-map-directory-head strong {
+  color: #172630;
+}
+
+.dashboard-shell[data-theme="light"] .floor-map-directory-metrics {
+  color: #4c626e;
+}
+
+.dashboard-shell[data-theme="light"] .floor-map-directory-badge--normal {
+  background: #dcfce7;
+  color: #166534;
+}
+
+.dashboard-shell[data-theme="light"] .floor-map-directory-badge--warning {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+.dashboard-shell[data-theme="light"] .floor-map-directory-badge--critical {
+  background: #fee2e2;
+  color: #991b1b;
+}
+
+.dashboard-shell[data-theme="light"] .floor-map-directory-badge--offline {
+  background: #e2e8f0;
+  color: #475569;
+}
+
+.dashboard-shell[data-theme="light"] .room-drawer-freshness-banner {
+  border-color: #b8dce4;
+  background: #edf6f8;
+  color: #075f70;
+}
+
+.dashboard-shell[data-theme="light"] .room-drawer-freshness-banner.is-static {
+  border-color: #e6c67c;
+  background: #fff8e6;
+  color: #854d0e;
+}
+
+.dashboard-shell[data-theme="light"] .room-device-scope-note {
+  color: #536a76;
+}
+
+.dashboard-shell[data-theme="light"] .room-device-scope-note strong {
+  color: #172630;
+}
+
+.dashboard-shell[data-theme="light"] .room-tracked-devices-section,
+.dashboard-shell[data-theme="light"] .room-incidents-section {
+  border-top-color: #d7e1e5;
+}
+
+.dashboard-shell[data-theme="light"] .room-tracked-device-item,
+.dashboard-shell[data-theme="light"] .room-incident-item {
+  border-color: #ccd8de;
+  background: #f7fafb;
+}
+
+.dashboard-shell[data-theme="light"] .room-tracked-device-head strong,
+.dashboard-shell[data-theme="light"] .room-incident-head strong {
+  color: #172630;
+}
+
+.dashboard-shell[data-theme="light"] .room-tracked-device-type,
+.dashboard-shell[data-theme="light"] .room-incident-meta {
+  color: #536a76;
+}
+
+.dashboard-shell[data-theme="light"] .room-tracked-sensor-chip {
+  border-color: #c4d2d9;
+  background: #ffffff;
+  color: #243943;
+}
+
+.dashboard-shell[data-theme="light"] .room-incident-handling {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+.dashboard-shell[data-theme="light"] .room-incident-handling--acknowledged {
+  background: #e0f2fe;
+  color: #075985;
+}
+
+.dashboard-shell[data-theme="light"] .room-tracked-empty,
+.dashboard-shell[data-theme="light"] .room-quick-controls-disclaimer {
+  border-color: #cbd8df;
+  background: #f4f8fa;
+  color: #4c626e;
+}
+
+.dashboard-shell[data-theme="light"] .floor-map-camera-pill {
+  border-color: #7dd3fc;
+  background: #e0f2fe;
+  color: #0369a1;
+}
+
+.dashboard-shell[data-theme="light"] .room-cameras-section {
+  border-top-color: #d6e2e8;
+}
+
+.dashboard-shell[data-theme="light"] .room-camera-tab {
+  border-color: #cbd8df;
+  background: #f8fafc;
+  color: #334e5c;
+}
+
+.dashboard-shell[data-theme="light"] .room-camera-tab strong {
+  color: #0284c7;
+}
+
+.dashboard-shell[data-theme="light"] .room-camera-tab.is-active {
+  border-color: #0284c7;
+  background: #e0f2fe;
+  color: #0c4a6e;
+}
+
+.dashboard-shell[data-theme="light"] .room-cctv-card {
+  border-color: #cbd8df;
+  background: #f8fafc;
+}
+
+.dashboard-shell[data-theme="light"] .room-cctv-meta strong {
+  color: #172630;
+}
+
+.dashboard-shell[data-theme="light"] .room-cctv-meta p {
+  color: #4c626e;
+}
+
+
+

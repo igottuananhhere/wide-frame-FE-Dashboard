@@ -36,3 +36,28 @@ export interface SchematicRoomGeometry {
   label: MapPoint;
   fixtures?: readonly SchematicFixture[];
 }
+
+export type CameraSceneKind = "lobby" | "corridor-west" | "corridor-east" | "server-room";
+
+export interface FloorCameraMarker {
+  id: EntityId;
+  deviceId: EntityId;
+  code: string;
+  name: string;
+  floorId: EntityId;
+  roomId: EntityId;
+  roomName: string;
+  locationDetail: string;
+  position: MapPoint;
+  /** Direction the camera points in degrees (0 = East/Right, 90 = South/Down, 180 = West/Left, 270 = North/Up). */
+  angleDeg: number;
+  /** Field-of-view cone angle in degrees. */
+  fovDeg: number;
+  /** Visual cone radius in SVG units. */
+  rangePx: number;
+  resolution: string;
+  streamMode: "live" | "static-sample";
+  sceneKind: CameraSceneKind;
+  status: OperationalStatus;
+}
+

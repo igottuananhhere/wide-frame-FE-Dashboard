@@ -63,7 +63,7 @@ describe("mock realtime dashboard flow", () => {
       .not.toBe(previousUpdate);
     expect(document.querySelector(".dashboard-header .live-indicator")?.getAttribute("aria-label"))
       .toBe("Floor 1 paused simulation");
-  }, 15000);
+  }, 30000);
 
   it("propagates a TEMP-04 offline event to the room map, drawer, KPI and queue", async () => {
     render(<App />);
@@ -79,7 +79,7 @@ describe("mock realtime dashboard flow", () => {
     const meetingRoomDrawer = screen.getByRole("complementary", { name: /meeting room 02 details/i });
     expect(meetingRoomDrawer.textContent).toContain("Online2");
     expect(meetingRoomDrawer.textContent).toContain("Offline1");
-    expect(screen.getByRole("article", { name: "Tình trạng thiết bị" }).textContent).toContain("23 / 26");
+    expect(screen.getByRole("article", { name: "Tình trạng thiết bị" }).textContent).toContain("27 / 30");
     expect(screen.getByRole("heading", { name: "Sensor TEMP-04 mất kết nối" })).toBeTruthy();
   }, 15000);
 

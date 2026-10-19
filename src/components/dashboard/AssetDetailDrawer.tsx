@@ -149,7 +149,11 @@ export default function AssetDetailDrawer({
                   <span className="asset-code-highlight">{ctx.item.id}</span>
                   <span className="asset-drawer-name-sep">·</span>
                   <span className="asset-drawer-name">
-                    {ctx.assetIdentity?.name ?? ctx.device?.name ?? ctx.item.type}
+                    {ctx.assetIdentity?.name && ctx.assetIdentity.name !== ctx.item.id
+                      ? ctx.assetIdentity.name
+                      : ctx.device?.name && ctx.device.name !== ctx.item.id
+                        ? ctx.device.name
+                        : ctx.item.type}
                   </span>
                 </h2>
                 <span className="asset-drawer-category-tag">{ctx.categoryLabel}</span>
@@ -400,32 +404,61 @@ export default function AssetDetailDrawer({
               </section>
 
               {/* Block D: Bảo trì tiếp theo */}
-              {ctx.maintenanceCycleInfo && (
+              {(ctx.maintenanceCycleInfo || ctx.maintenancePlans.length > 0) && (
                 <section className="asset-detail-card" aria-labelledby="sec-next-maintenance">
                   <h3 id="sec-next-maintenance" className="asset-card-title">
-                    <Wrench size={15} aria-hidden="true" /> Bảo trì tiếp theo
+                    <Wrench size={15} aria-hidden="true" />
+                    <span>Bảo trì tiếp theo</span>
+                    <span className="asset-card-title-meta">Ngày tham chiếu: {ctx.referenceDateLabel}</span>
                   </h3>
-                  <div className="asset-maintenance-preview">
-                    <div className="asset-maint-headline">
-                      <strong>{ctx.maintenanceCycleInfo.itemTitle}</strong>
-                      <span className="asset-maint-hours-pill">
-                        Còn {ctx.maintenanceCycleInfo.remainingHours} giờ vận hành
-                      </span>
+                  {ctx.maintenanceCycleInfo && (
+                    <div className="asset-maintenance-preview">
+                      <div className="asset-maint-headline">
+                        <strong>{ctx.maintenanceCycleInfo.itemTitle}</strong>
+                        <span className="asset-maint-hours-pill">
+                          Còn {ctx.maintenanceCycleInfo.remainingHours} giờ vận hành
+                        </span>
+                      </div>
+                      <div className="asset-maint-progress-wrap">
+                        <div
+                          className="asset-maint-progress-bar"
+                          style={{ width: `${ctx.maintenanceCycleInfo.percentComplete}%` }}
+                        />
+                      </div>
+                      <div className="asset-maint-progress-labels">
+                        <span>Đã chạy: {ctx.maintenanceCycleInfo.accumulatedHours}h</span>
+                        <span>Chu kỳ: {ctx.maintenanceCycleInfo.intervalHours}h</span>
+                      </div>
+                      <p className="asset-maint-explanation">
+                        <Info size={13} aria-hidden="true" /> {ctx.maintenanceCycleInfo.explanation}
+                      </p>
                     </div>
-                    <div className="asset-maint-progress-wrap">
-                      <div
-                        className="asset-maint-progress-bar"
-                        style={{ width: `${ctx.maintenanceCycleInfo.percentComplete}%` }}
-                      />
+                  )}
+                  {ctx.maintenancePlans.length > 0 && (
+                    <div className="asset-maint-plans-list" aria-label="Danh sách hạng mục bảo trì theo lịch">
+                      {ctx.maintenancePlans.map((plan) => (
+                        <div key={plan.id} className="asset-maint-plan-item">
+                          <div className="asset-maint-headline">
+                            <strong>{plan.title}</strong>
+                            <StatusBadge
+                              status={
+                                plan.dueStatus === "overdue" || plan.dueStatus === "due"
+                                  ? "critical"
+                                  : plan.dueStatus === "due-soon"
+                                    ? "warning"
+                                    : "normal"
+                              }
+                              label={plan.remainingLabel}
+                            />
+                          </div>
+                          <div className="asset-maint-progress-labels">
+                            <span>Căn cứ: {plan.basisLabel} ({plan.nominalCycleLabel})</span>
+                            <span>Mốc đến hạn: {plan.nextMilestoneLabel}</span>
+                          </div>
+                        </div>
+                      ))}
                     </div>
-                    <div className="asset-maint-progress-labels">
-                      <span>Đã chạy: {ctx.maintenanceCycleInfo.accumulatedHours}h</span>
-                      <span>Chu kỳ: {ctx.maintenanceCycleInfo.intervalHours}h</span>
-                    </div>
-                    <p className="asset-maint-explanation">
-                      <Info size={13} aria-hidden="true" /> {ctx.maintenanceCycleInfo.explanation}
-                    </p>
-                  </div>
+                  )}
                 </section>
               )}
 
@@ -558,7 +591,9 @@ export default function AssetDetailDrawer({
               {/* Phần A: Kế hoạch hiện tại */}
               <section className="asset-detail-card" aria-labelledby="sec-plan">
                 <h3 id="sec-plan" className="asset-card-title">
-                  <Wrench size={15} aria-hidden="true" /> Kế hoạch bảo trì chu kỳ
+                  <Wrench size={15} aria-hidden="true" />
+                  <span>Kế hoạch bảo trì chu kỳ</span>
+                  <span className="asset-card-title-meta">Ngày tham chiếu: {ctx.referenceDateLabel}</span>
                 </h3>
                 {ctx.maintenanceCycleInfo ? (
                   <div className="asset-maint-detail-box">
@@ -603,6 +638,35 @@ export default function AssetDetailDrawer({
                   </div>
                 ) : (
                   <p className="asset-empty-text">Thiết bị chưa được cấu hình chu kỳ bảo dưỡng theo giờ chạy.</p>
+                )}
+
+                {ctx.maintenancePlans.length > 0 && (
+                  <div className="asset-maint-plans-list" aria-label="Chi tiết các hạng mục kế hoạch bảo trì">
+                    {ctx.maintenancePlans.map((plan) => (
+                      <div key={plan.id} className="asset-history-item">
+                        <div className="asset-history-head">
+                          <span className="asset-history-date">
+                            {plan.basisLabel} · Mốc kế tiếp: <strong>{plan.nextMilestoneLabel}</strong>
+                          </span>
+                          <StatusBadge
+                            status={
+                              plan.dueStatus === "overdue" || plan.dueStatus === "due"
+                                ? "critical"
+                                : plan.dueStatus === "due-soon"
+                                  ? "warning"
+                                  : "normal"
+                            }
+                            label={plan.remainingLabel}
+                          />
+                        </div>
+                        <strong className="asset-history-title">{plan.title}</strong>
+                        <p className="asset-history-performer">
+                          <User size={13} aria-hidden="true" /> Phụ trách: {plan.assignee}
+                        </p>
+                        {plan.notes && <p className="asset-history-notes">{plan.notes}</p>}
+                      </div>
+                    ))}
+                  </div>
                 )}
               </section>
 

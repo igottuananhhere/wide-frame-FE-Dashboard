@@ -13,6 +13,8 @@ export function getPrimaryMetricValue(device: TwinDevice, sensors: readonly Twin
   if (!sensor || sensor.status === "offline") return `${device.primaryMetric} · Mất kết nối`;
   if (sensor.metric === "temperature") return `${device.primaryMetric} · ${sensor.value.toFixed(1)} ${sensor.unit}`;
   if (sensor.metric === "maintenance-hours-remaining") return `${device.primaryMetric} · ${sensor.value} ${sensor.unit}`;
+  if (sensor.metric === "co2") return `${device.primaryMetric} · ${sensor.value.toLocaleString("en-US")} ${sensor.unit}`;
+  if (sensor.metric === "humidity" || sensor.metric === "power") return `${device.primaryMetric} · ${sensor.value} ${sensor.unit}`;
   return `${device.primaryMetric} · Online`;
 }
 

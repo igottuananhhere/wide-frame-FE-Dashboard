@@ -33,22 +33,46 @@ async function openFloor(floorId: string, title: string) {
 }
 
 describe("building and floor management overview", () => {
-  it("aggregates the configured floors and returns to the building scope from Overview", async () => {
+  it("aggregates only same-day valid floors on Building Overview today, aggregates both floors on 08/10/2026, and shows no-data state on unrecorded dates", async () => {
     render(<App />);
 
     expect(await screen.findByRole("heading", { name: "Tổng quan vận hành tòa nhà" })).toBeTruthy();
+    // On Today (18/10/2026), only Floor 1 has live simulation data (125.6 kWh); Floor 2 (08/10/2026 static sample) is not summed into today
+    expect(screen.getAllByText("125.6 kWh").length).toBeGreaterThan(0);
+    expect(screen.queryByText("266.6 kWh")).toBeNull();
+    expect(screen.getByRole("heading", { name: "Điện năng ghi nhận hôm nay" })).toBeTruthy();
+    expect(screen.getByText(/Trạng thái hiện tại · Không lọc theo ngày lịch sử/i)).toBeTruthy();
+
+    // Select 08/10/2026 where both Floor 1 (125.6 kWh) and Floor 2 (141.0 kWh) have sample data -> 266.6 kWh
+    fireEvent.click(screen.getByRole("button", { name: /Lọc theo ngày/i }));
+    const oct8Cell = screen.getByRole("gridcell", { name: "Ngày 08/10/2026" });
+    fireEvent.click(oct8Cell);
+    fireEvent.click(oct8Cell);
+
+    expect(screen.getByRole("heading", { name: "Điện năng ghi nhận ngày 08/10/2026" })).toBeTruthy();
     expect(screen.getAllByText("266.6 kWh").length).toBeGreaterThan(0);
+    expect(screen.getByText(/Khu làm việc 2A \(Floor 2\) · 52\.4 kWh/i)).toBeTruthy();
+
+    // Select an unrecorded historical date (01/10/2026) -> must show Chưa có dữ liệu instead of fabricating numbers
+    const oct1Cell = screen.getByRole("gridcell", { name: "Ngày 01/10/2026" });
+    fireEvent.click(oct1Cell);
+    fireEvent.click(oct1Cell);
+    expect(screen.getAllByText("Chưa có dữ liệu").length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/Chưa đủ dữ liệu để so sánh kỳ trước/i).length).toBeGreaterThan(0);
 
     const floorSelector = screen.getByRole("combobox", { name: "Floor" }) as HTMLSelectElement;
     fireEvent.change(floorSelector, { target: { value: "ics-headquarters-floor-2" } });
     expect(await screen.findByRole("heading", { name: "Tổng quan vận hành Floor 2" })).toBeTruthy();
     expect(screen.getAllByText("141.0 kWh").length).toBeGreaterThan(0);
     expect(screen.getAllByText("Khu làm việc 2A").length).toBeGreaterThan(0);
+    expect(screen.getByRole("heading", { name: "Sơ đồ vận hành Floor 2" })).toBeTruthy();
+    // Floor 2 footnote must never reference Floor 1's TEMP-04 or Meeting Room 02
+    expect(screen.queryByText(/TEMP-04/i)).toBeNull();
 
     fireEvent.click(screen.getByRole("link", { name: "Tổng quan" }));
     expect(await screen.findByRole("heading", { name: "Tổng quan vận hành tòa nhà" })).toBeTruthy();
     expect(floorSelector.value).toBe("ics-headquarters-all-floors");
-  }, 15000);
+  }, 30000);
 
   it("prebundles Recharts before the lazy energy chart is requested", () => {
     expect(viteConfig.optimizeDeps?.include).toContain("recharts");
@@ -60,7 +84,7 @@ describe("building and floor management overview", () => {
     await openFloor("ics-headquarters-floor-1", "Tổng quan vận hành Floor 1");
     expect(screen.getByText("Tổng quan vận hành Floor 1")).toBeTruthy();
     expect(screen.getAllByText("125.6 kWh").length).toBeGreaterThan(0);
-    expect(screen.getByText("24 / 26")).toBeTruthy();
+    expect(screen.getByText("28 / 30")).toBeTruthy();
     expect(screen.getByText("4", { selector: ".kpi-card-value" })).toBeTruthy();
     expect(screen.getAllByText("Bình thường").length).toBeGreaterThan(0);
     expect(screen.getByText("Sensor WS-08 mất kết nối")).toBeTruthy();

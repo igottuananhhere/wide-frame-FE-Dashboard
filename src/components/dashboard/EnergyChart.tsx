@@ -44,6 +44,10 @@ type EnergyChartProps = {
   hourlyDeviceReadings?: readonly DeviceHourlyEnergyReading[];
   devices?: readonly TwinDevice[];
   rooms?: readonly FloorRoomSnapshot[];
+  yesterdayData?: readonly EnergyPoint[];
+  compareYesterday?: boolean;
+  showCaptionInHourlyMode?: boolean;
+  includeCumulativeInAriaLabel?: boolean;
 };
 
 function formatHourMinute(date: Date): string {
@@ -70,10 +74,14 @@ export default function EnergyChart({
   hourlyDeviceReadings = [],
   devices = [],
   rooms = [],
+  yesterdayData = [],
+  compareYesterday = false,
+  showCaptionInHourlyMode = false,
+  includeCumulativeInAriaLabel = false,
 }: EnergyChartProps) {
   const [selectedExceededIntervalKey, setSelectedExceededIntervalKey] = useState<string | null>(null);
   const referenceDate = lastUpdatedAt !== undefined ? new Date(lastUpdatedAt) : new Date();
-  const currentTime = currentTimeOverride ?? formatHourMinute(referenceDate);
+  const currentTime = currentTimeOverride ?? data.at(-1)?.time ?? formatHourMinute(referenceDate);
   const today = new Intl.DateTimeFormat("en-GB", { dateStyle: "short" }).format(referenceDate);
   const sampleDateLabel = formatSampleDate(sampleDate);
   const chartData = selectEnergyChartPoints(data, source, currentTime);
@@ -81,10 +89,20 @@ export default function EnergyChart({
   if (mode === "hourly") {
     const thresholdKwh = thresholdConfig.thresholdKwh;
     const thresholdLabel = thresholdConfig.label;
-    const hourlyIntervals = selectHourlyEnergyIntervals(data, source, currentTime);
-    const peakInterval = findPeakEnergyInterval(hourlyIntervals);
-    const exceededIntervals = findExceededHourlyIntervals(hourlyIntervals, thresholdKwh);
-    const peakExceededInterval = findPeakExceededHourlyInterval(hourlyIntervals, thresholdKwh);
+    const baseHourlyIntervals = selectHourlyEnergyIntervals(data, source, currentTime);
+    const yesterdayIntervals = compareYesterday && yesterdayData.length >= 2
+      ? selectHourlyEnergyIntervals(yesterdayData, "dated-sample", currentTime)
+      : [];
+    const yesterdayByInterval = new Map(
+      yesterdayIntervals.map((item) => [item.interval, item.kwh]),
+    );
+    const hourlyIntervals = baseHourlyIntervals.map((item) => ({
+      ...item,
+      yesterdayKwh: yesterdayByInterval.get(item.interval) ?? null,
+    }));
+    const peakInterval = findPeakEnergyInterval(baseHourlyIntervals);
+    const exceededIntervals = findExceededHourlyIntervals(baseHourlyIntervals, thresholdKwh);
+    const peakExceededInterval = findPeakExceededHourlyInterval(baseHourlyIntervals, thresholdKwh);
     const activeExceededInterval = exceededIntervals.find(
       (item) => item.interval === selectedExceededIntervalKey,
     ) ?? peakExceededInterval;
@@ -108,9 +126,19 @@ export default function EnergyChart({
     const totalFloorDeviceCount = rooms.reduce((sum, room) => sum + room.deviceCount, 0) || devices.length;
     const monitoredDeviceCount = new Set(hourlyDeviceReadings.map((item) => item.deviceId)).size || devices.length;
 
-    const ariaLabel = source === "current-day"
-      ? `${scopeLabel} hourly energy consumption (kWh per hour) today ${today} (${rangeLabel})${scopeNote ? `; ${scopeNote}` : ""}`
-      : `${scopeLabel} hourly energy consumption (kWh per hour); static sample from ${sampleDateLabel} (${rangeLabel})`;
+    const ariaLabel = includeCumulativeInAriaLabel
+      ? source === "current-day"
+        ? `${scopeLabel} cumulative energy (kWh) and hourly consumption (kWh per hour) today ${today} (${rangeLabel})${scopeNote ? `; ${scopeNote}` : ""}`
+        : `${scopeLabel} cumulative energy (kWh) and hourly consumption; static sample from ${sampleDateLabel} (${rangeLabel})`
+      : source === "current-day"
+        ? `${scopeLabel} hourly energy consumption (kWh per hour) today ${today} (${rangeLabel})${scopeNote ? `; ${scopeNote}` : ""}`
+        : `${scopeLabel} hourly energy consumption (kWh per hour); static sample from ${sampleDateLabel} (${rangeLabel})`;
+
+    const fullDayEnd = data.at(-1)?.time ?? "17:00";
+    const fullDayKwh = snapshotTotalKwh ?? data.at(-1)?.kwh;
+    const hourlyCaption = source === "current-day"
+      ? `${scopeLabel} · Dữ liệu đã ghi nhận ngày ${today} (khung ${rangeLabel}, đơn vị: kWh trong mỗi giờ) · Tổng đã ghi nhận (00:00–${fullDayEnd}): ${(fullDayKwh ?? 0).toFixed(1)} kWh${scopeNote ? ` · ${scopeNote}` : ""}.`
+      : `${scopeLabel} · Dữ liệu mẫu tĩnh ngày ${sampleDateLabel} (khung ${rangeLabel}, đơn vị: kWh trong mỗi giờ) · không phải số đo hôm nay.`;
 
     return (
       <div className="energy-chart-frame">
@@ -171,8 +199,11 @@ export default function EnergyChart({
                   }}
                   labelStyle={{ color: "var(--color-chart-tooltip-label, #c4d2de)" }}
                   labelFormatter={(label) => `Khoảng giờ: ${String(label)}`}
-                  formatter={(value) => {
+                  formatter={(value, name) => {
                     const num = Number(value);
+                    if (name === "Cùng giờ hôm qua") {
+                      return [`${num.toFixed(1)} kWh`, "Cùng giờ hôm qua"];
+                    }
                     const diff = Number((num - thresholdKwh).toFixed(1));
                     return [
                       diff > 0
@@ -182,12 +213,25 @@ export default function EnergyChart({
                     ];
                   }}
                 />
+                {compareYesterday && yesterdayIntervals.length > 0 && (
+                  <Line
+                    type="monotone"
+                    dataKey="yesterdayKwh"
+                    name="Cùng giờ hôm qua"
+                    stroke="#94a3b8"
+                    strokeDasharray="4 4"
+                    strokeWidth={1.8}
+                    connectNulls={false}
+                    dot={{ r: 2.5, fill: "#94a3b8", strokeWidth: 0 }}
+                  />
+                )}
                 <Line
                   type="monotone"
                   dataKey="kwh"
                   name="Điện năng tiêu thụ"
                   stroke="var(--color-chart-line, #42d7ee)"
                   strokeWidth={2.5}
+                  connectNulls={false}
                   dot={(dotProps) => {
                     const { cx, cy, payload } = dotProps as {
                       cx?: number;
@@ -236,13 +280,19 @@ export default function EnergyChart({
           >
             <div className="energy-chart-insufficient-card" role="status">
               <div className="energy-chart-insufficient-head">
-                <strong>Chưa đủ dữ liệu để hiển thị xu hướng</strong>
+                <strong>
+                  {data.length === 0 && (Boolean(sampleDate) || source === "dated-sample")
+                    ? "Chưa có dữ liệu lịch sử cho kỳ đã chọn"
+                    : "Chưa đủ dữ liệu để hiển thị xu hướng"}
+                </strong>
                 <span>
-                  {hourlyIntervals.length === 1 && firstInterval
-                    ? `Mới có 1 khoảng giờ thực có dữ liệu (${firstInterval.interval}: ${firstInterval.kwh.toFixed(1)} kWh). Cần tối thiểu 2 khoảng giờ để vẽ biểu đồ xu hướng.`
-                    : chartData.length === 1
-                      ? `Mới có 1 mốc đo lũy kế tại ${chartData[0]!.time} (${chartData[0]!.kwh.toFixed(1)} kWh tích lũy 00:00–${chartData[0]!.time}, không phải điện năng riêng của giờ ${chartData[0]!.time}). Cần tối thiểu 2 lần đo liên tiếp để tính điện năng theo giờ.`
-                      : `Chưa có khoảng giờ thực nào có dữ liệu trước ${currentTime}. Cần tối thiểu 2 khoảng giờ có dữ liệu để hiển thị biểu đồ.`}
+                  {data.length === 0 && (Boolean(sampleDate) || source === "dated-sample")
+                    ? "Hệ thống không tự sinh số liệu giả lập cho các ngày chưa có bản ghi telemetry."
+                    : hourlyIntervals.length === 1 && firstInterval
+                      ? `Mới có 1 khoảng giờ thực có dữ liệu (${firstInterval.interval}: ${firstInterval.kwh.toFixed(1)} kWh). Cần tối thiểu 2 khoảng giờ để vẽ biểu đồ xu hướng.`
+                      : chartData.length === 1
+                        ? `Mới có 1 mốc đo lũy kế tại ${chartData[0]!.time} (${chartData[0]!.kwh.toFixed(1)} kWh tích lũy 00:00–${chartData[0]!.time}, không phải điện năng riêng của giờ ${chartData[0]!.time}). Cần tối thiểu 2 lần đo liên tiếp để tính điện năng theo giờ.`
+                        : `Chưa có khoảng giờ thực nào có dữ liệu trước ${currentTime}. Cần tối thiểu 2 khoảng giờ có dữ liệu để hiển thị biểu đồ.`}
                 </span>
               </div>
               {hourlyIntervals.length === 1 && firstInterval && (
@@ -363,16 +413,23 @@ export default function EnergyChart({
             </section>
           </div>
         )}
+        {showCaptionInHourlyMode && (
+          <p className="energy-chart-caption">{hourlyCaption}</p>
+        )}
       </div>
     );
   }
 
+  const yesterdayByTime = new Map(
+    yesterdayData.map((point) => [point.time, point.kwh]),
+  );
   const enrichedChartData = chartData.map((point, index) => {
     const prevKwh = index > 0 ? chartData[index - 1]!.kwh : 0;
     const hourlyDelta = Number(Math.max(0, point.kwh - prevKwh).toFixed(1));
     return {
       ...point,
       hourlyKwh: hourlyDelta,
+      yesterdayKwh: compareYesterday ? (yesterdayByTime.get(point.time) ?? null) : null,
     };
   });
 
@@ -422,7 +479,10 @@ export default function EnergyChart({
                   color: "var(--color-chart-tooltip-text, #f4f8fb)",
                 }}
                 labelStyle={{ color: "var(--color-chart-tooltip-label, #c4d2de)" }}
-                formatter={(value, _name, item) => {
+                formatter={(value, name, item) => {
+                  if (name === "Cùng giờ hôm qua") {
+                    return [`${Number(value).toFixed(1)} kWh lũy kế`, "Cùng giờ hôm qua"];
+                  }
                   const hourly = (item?.payload as { hourlyKwh?: number } | undefined)?.hourlyKwh;
                   return [
                     `${value} kWh lũy kế${hourly !== undefined ? ` (+${hourly.toFixed(1)} kWh/giờ)` : ""}`,
@@ -430,11 +490,24 @@ export default function EnergyChart({
                   ];
                 }}
               />
+              {compareYesterday && yesterdayData.length > 0 && (
+                <Line
+                  type="monotone"
+                  dataKey="yesterdayKwh"
+                  name="Cùng giờ hôm qua"
+                  stroke="#94a3b8"
+                  strokeDasharray="4 4"
+                  strokeWidth={1.8}
+                  connectNulls={false}
+                  dot={{ r: 2.5, fill: "#94a3b8", strokeWidth: 0 }}
+                />
+              )}
               <Line
                 type="monotone"
                 dataKey="kwh"
                 stroke="var(--color-chart-line, #42d7ee)"
                 strokeWidth={2.5}
+                connectNulls={false}
                 dot={{ r: 3, fill: "var(--color-chart-line, #42d7ee)", strokeWidth: 0 }}
                 activeDot={{ r: 4, fill: "var(--color-chart-line, #42d7ee)", stroke: "var(--color-chart-dot-stroke, #102a39)", strokeWidth: 2 }}
               />
@@ -449,11 +522,17 @@ export default function EnergyChart({
         >
           <div className="energy-chart-insufficient-card" role="status">
             <div className="energy-chart-insufficient-head">
-              <strong>Chưa đủ dữ liệu để hiển thị xu hướng</strong>
+              <strong>
+                {data.length === 0 && (Boolean(sampleDate) || source === "dated-sample")
+                  ? "Chưa có dữ liệu lịch sử cho kỳ đã chọn"
+                  : "Chưa đủ dữ liệu để hiển thị xu hướng"}
+              </strong>
               <span>
-                {enrichedChartData.length === 1
-                  ? `Mới có 1 mốc đo theo giờ đến ${currentTime} (mốc ${enrichedChartData[0]!.time}: ${enrichedChartData[0]!.kwh.toFixed(1)} kWh lũy kế đầu ca). Cần tối thiểu 2 mốc giờ để vẽ đường xu hướng.`
-                  : `Chưa có mốc đo theo giờ nào trước ${currentTime}. Cần tối thiểu 2 mốc giờ trong ngày để vẽ đường xu hướng.`}
+                {data.length === 0 && (Boolean(sampleDate) || source === "dated-sample")
+                  ? "Hệ thống không tự sinh số liệu giả lập cho các ngày chưa có bản ghi telemetry."
+                  : enrichedChartData.length === 1
+                    ? `Mới có 1 mốc đo theo giờ đến ${currentTime} (mốc ${enrichedChartData[0]!.time}: ${enrichedChartData[0]!.kwh.toFixed(1)} kWh lũy kế đầu ca). Cần tối thiểu 2 mốc giờ để vẽ đường xu hướng.`
+                    : `Chưa có mốc đo theo giờ nào trước ${currentTime}. Cần tối thiểu 2 mốc giờ trong ngày để vẽ đường xu hướng.`}
               </span>
             </div>
             <div className="energy-chart-insufficient-metrics">
@@ -463,7 +542,7 @@ export default function EnergyChart({
                   <strong>{enrichedChartData[0]!.kwh.toFixed(1)} kWh (00:00–{enrichedChartData[0]!.time})</strong>
                 </div>
               )}
-              {fullDayKwh !== undefined && (
+              {fullDayKwh !== undefined && data.length > 0 && (
                 <div>
                   <small>Tổng tích lũy kịch bản mô phỏng (00:00–{fullDayEnd})</small>
                   <strong>{fullDayKwh.toFixed(1)} kWh (lũy kế ngày)</strong>

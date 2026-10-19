@@ -1,3 +1,4 @@
+import { getLocalTodayIso } from "../dashboard/dateFilterUtils";
 import type { TwinDevice } from "../twin/types";
 import type {
   AssetDigitalIdentity,
@@ -5,7 +6,58 @@ import type {
   MaintenanceHistoryRecord,
   MaintenanceKpiSummary,
   MaintenancePlanItem,
+  PlanDueStatus,
 } from "./types";
+
+/**
+ * Calculates calendar-based maintenance due status and day difference from a reference date.
+ */
+export function computeCalendarMaintenanceStatus(
+  dueDateIso: string,
+  referenceDateIso: string = getLocalTodayIso(),
+): {
+  remainingDays: number;
+  remainingLabel: string;
+  dueStatus: PlanDueStatus;
+} {
+  const [dueY, dueM, dueD] = dueDateIso.split("-").map(Number);
+  const [refY, refM, refD] = referenceDateIso.split("-").map(Number);
+  const dueUtc = Date.UTC(dueY ?? 2026, (dueM ?? 1) - 1, dueD ?? 1);
+  const refUtc = Date.UTC(refY ?? 2026, (refM ?? 1) - 1, refD ?? 1);
+  const diffDays = Math.round((dueUtc - refUtc) / 86_400_000);
+
+  if (diffDays < 0) {
+    return {
+      remainingDays: diffDays,
+      remainingLabel: `Quá hạn ${Math.abs(diffDays)} ngày`,
+      dueStatus: "overdue",
+    };
+  }
+  if (diffDays === 0) {
+    return {
+      remainingDays: 0,
+      remainingLabel: "Đến hạn hôm nay",
+      dueStatus: "due",
+    };
+  }
+  if (diffDays <= 14) {
+    return {
+      remainingDays: diffDays,
+      remainingLabel: `Còn ${diffDays} ngày`,
+      dueStatus: "due-soon",
+    };
+  }
+  return {
+    remainingDays: diffDays,
+    remainingLabel: `Còn ${diffDays} ngày`,
+    dueStatus: "normal",
+  };
+}
+
+const initialRefDateIso = getLocalTodayIso();
+const ac03FiltersCal = computeCalendarMaintenanceStatus("2026-07-15", initialRefDateIso);
+const ac03SafetyCal = computeCalendarMaintenanceStatus("2026-11-20", initialRefDateIso);
+const ac07CoilCal = computeCalendarMaintenanceStatus("2026-03-25", initialRefDateIso);
 
 /**
  * Baseline maintenance plans for assets in ICS Digital Twin.
@@ -55,9 +107,9 @@ export const initialMaintenancePlans: readonly MaintenancePlanItem[] = [
     nominalCycleLabel: "Chu kỳ 90 ngày",
     nextMilestoneValue: "2026-07-15",
     nextMilestoneLabel: "15/07/2026",
-    remainingDays: 95,
-    remainingLabel: "Còn 95 ngày",
-    dueStatus: "normal",
+    remainingDays: ac03FiltersCal.remainingDays,
+    remainingLabel: ac03FiltersCal.remainingLabel,
+    dueStatus: ac03FiltersCal.dueStatus,
     progressStatus: "scheduled",
     assignee: "KTV. Nguyễn Văn Hùng · Đội Cơ điện MEP",
     lastCompletedDate: "18/04/2026",
@@ -80,9 +132,9 @@ export const initialMaintenancePlans: readonly MaintenancePlanItem[] = [
     nominalCycleLabel: "Chu kỳ 365 ngày",
     nextMilestoneValue: "2026-11-20",
     nextMilestoneLabel: "20/11/2026",
-    remainingDays: 223,
-    remainingLabel: "Còn 223 ngày",
-    dueStatus: "normal",
+    remainingDays: ac03SafetyCal.remainingDays,
+    remainingLabel: ac03SafetyCal.remainingLabel,
+    dueStatus: ac03SafetyCal.dueStatus,
     progressStatus: "scheduled",
     assignee: "Trung tâm kiểm định kỹ thuật an toàn",
     lastCompletedDate: "20/11/2025",
@@ -97,7 +149,7 @@ export const initialMaintenancePlans: readonly MaintenancePlanItem[] = [
     assetName: "AC-07",
     assetModel: "SkyAir · RZQ125",
     roomId: "room-workspace-02",
-    floorId: "demo-floor-2",
+    floorId: "ics-headquarters-floor-2",
     title: "Bảo dưỡng định kỳ máy nén & nạp gas bổ sung",
     basis: "runtime_hours",
     basisLabel: "Theo giờ vận hành",
@@ -122,7 +174,7 @@ export const initialMaintenancePlans: readonly MaintenancePlanItem[] = [
     assetName: "AC-07",
     assetModel: "SkyAir · RZQ125",
     roomId: "room-workspace-02",
-    floorId: "demo-floor-2",
+    floorId: "ics-headquarters-floor-2",
     title: "Vệ sinh khử khuẩn dàn lạnh & máng nước ngưng",
     basis: "calendar",
     basisLabel: "Theo lịch định kỳ",
@@ -132,9 +184,9 @@ export const initialMaintenancePlans: readonly MaintenancePlanItem[] = [
     nominalCycleLabel: "Chu kỳ 180 ngày",
     nextMilestoneValue: "2026-03-25",
     nextMilestoneLabel: "25/03/2026",
-    remainingDays: -17,
-    remainingLabel: "Quá hạn 17 ngày",
-    dueStatus: "overdue",
+    remainingDays: ac07CoilCal.remainingDays,
+    remainingLabel: ac07CoilCal.remainingLabel,
+    dueStatus: ac07CoilCal.dueStatus,
     progressStatus: "scheduled",
     assignee: "Đội Dịch vụ Tòa nhà",
     lastCompletedDate: "25/09/2025",
@@ -209,15 +261,27 @@ export const initialMaintenanceHistory: readonly MaintenanceHistoryRecord[] = [
 ];
 
 /**
- * Dynamically resolves maintenance plans based on live twin device telemetry.
+ * Dynamically resolves maintenance plans based on live twin device telemetry and reference date.
  * If device simulation reports remaining hours (e.g. 0 during scenario "ac-03-maintenance-due"),
  * the plan dynamically recalculates due status and remaining label.
+ * For calendar-based plans, computes day difference from referenceDateIso.
  */
 export function resolveMaintenancePlans(
   plans: readonly MaintenancePlanItem[],
   devices: readonly TwinDevice[],
+  referenceDateIso: string = getLocalTodayIso(),
 ): MaintenancePlanItem[] {
   return plans.map((plan) => {
+    if (plan.basis === "calendar" && typeof plan.nextMilestoneValue === "string") {
+      const calStatus = computeCalendarMaintenanceStatus(plan.nextMilestoneValue, referenceDateIso);
+      return {
+        ...plan,
+        remainingDays: calStatus.remainingDays,
+        remainingLabel: calStatus.remainingLabel,
+        dueStatus: calStatus.dueStatus,
+      };
+    }
+
     if (plan.basis !== "runtime_hours" || !plan.deviceId) return plan;
 
     const device = devices.find((d) => d.id === plan.deviceId);

@@ -190,4 +190,22 @@ describe("energy chart history", () => {
     // Interval with no hourly device readings must return empty array
     expect(selectors.buildSuspectDevicesForInterval("14:00–15:00", hourlyReadings, devices, rooms)).toEqual([]);
   });
+
+  it("synchronizes monthly forecast date with latest KPI date and computes traceable cost from projected kWh and unit rate", async () => {
+    const { calculateMonthlyEnergyForecast } = await import("./energyForecast");
+    const { floor1MonthlyEnergyForecast } = await import("../../data/mock/energyForecast.mock");
+
+    const synced = calculateMonthlyEnergyForecast(floor1MonthlyEnergyForecast, 125.6, {
+      latestReadingDate: "2026-10-16",
+      lastUpdatedTimeLabel: "09:00:00",
+      scopeSummaryLabel: "Phạm vi dữ liệu: Floor 1 (1/5 tầng)",
+    });
+
+    expect(synced.readingDate).toBe("2026-10-16");
+    expect(synced.elapsedDays).toBe(16);
+    expect(synced.daysInBillingPeriod).toBe(31);
+    expect(synced.projectedCostVnd).toBe(Math.round(synced.projectedKwh * synced.averageRateVndPerKwh));
+    expect(synced.scopeSummaryLabel).toBe("Phạm vi dữ liệu: Floor 1 (1/5 tầng)");
+  });
 });
+

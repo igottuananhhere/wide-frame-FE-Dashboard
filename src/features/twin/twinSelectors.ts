@@ -150,6 +150,7 @@ export function resolveAlertPriorityReason(alert: TwinAlert): string {
 
 export function summarizeIncidentCategories(alerts: readonly TwinAlert[]) {
   const unresolved = alerts.filter(isUnresolvedIncident);
+  const resolved = alerts.filter((alert) => alert.status === "resolved").length;
   let device = 0;
   let environment = 0;
   let maintenance = 0;
@@ -168,6 +169,7 @@ export function summarizeIncidentCategories(alerts: readonly TwinAlert[]) {
     maintenance,
     unacknowledged: unresolved.filter((alert) => alert.status === "active").length,
     acknowledged: unresolved.filter((alert) => alert.status === "acknowledged").length,
+    resolved,
   };
 }
 
@@ -205,10 +207,20 @@ export function buildAttentionQueue(alerts: readonly TwinAlert[], now = Date.now
       reading: alert.reading,
       occurredAt: relativeTime(alert.occurredAt, now),
       occurredAtMs: alert.occurredAt,
+      floorId: alert.floorId,
       roomId: alert.roomId,
       deviceId: alert.deviceId,
       assetId: alert.assetId,
     }));
+}
+
+export interface BuildOverviewKpisOptions {
+  monitoredDeviceCount?: number;
+  energyLabel?: string;
+  hasHistoricalData?: boolean;
+  hasPreviousPeriodComparison?: boolean;
+  comparisonPeriodLabel?: string;
+  energySubNote?: string;
 }
 
 export function buildOverviewKpis(
@@ -216,6 +228,7 @@ export function buildOverviewKpis(
   alerts: readonly TwinAlert[],
   environment: ReturnType<typeof buildEnvironmentSummary>,
   yesterdayKwh: number,
+  options?: BuildOverviewKpisOptions,
 ): KpiSummary[] {
   const deviceCount = rooms.reduce((total, room) => total + room.deviceCount, 0);
   const onlineCount = rooms.reduce((total, room) => total + room.onlineDeviceCount, 0);
@@ -237,16 +250,55 @@ export function buildOverviewKpis(
     });
   }
 
+  const deviceDetails: KpiDetail[] = [
+    { label: `${onlineCount} Online`, tone: "online" },
+    { label: `${offlineCount} Offline`, tone: "offline" },
+  ];
+  if (options?.monitoredDeviceCount !== undefined) {
+    const aggregatedCount = Math.max(0, deviceCount - options.monitoredDeviceCount);
+    deviceDetails.push({
+      label: `${options.monitoredDeviceCount} định danh riêng · ${aggregatedCount} gộp theo phòng`,
+    });
+  }
+
+  const hasHistoricalData = options?.hasHistoricalData ?? true;
+  const hasPreviousPeriodComparison = options?.hasPreviousPeriodComparison ?? true;
+  const energyLabel = options?.energyLabel ?? "Điện năng hôm nay";
+  const comparisonTargetText = options?.comparisonPeriodLabel ?? "cả ngày hôm qua";
+
+  let energyValue = `${energyTotal.toFixed(1)} kWh`;
+  let energyDetails: KpiDetail[];
+
+  if (!hasHistoricalData) {
+    energyValue = "Chưa có dữ liệu";
+    energyDetails = [
+      { label: "Chưa có bản ghi năng lượng cho ngày đã chọn" },
+      { label: "Chưa đủ dữ liệu để so sánh kỳ trước" },
+    ];
+  } else if (!hasPreviousPeriodComparison) {
+    energyDetails = [
+      { label: "Chưa đủ dữ liệu để so sánh kỳ trước" },
+      { label: options?.energySubNote ?? "Chỉ có tổng điện năng ngày đã chọn" },
+    ];
+  } else {
+    energyDetails = [
+      {
+        label: `${energyChangePercent > 0 ? "+" : energyChangePercent < 0 ? "-" : ""}${Math.abs(energyChangePercent).toFixed(1)}% so với ${comparisonTargetText} (${yesterdayKwh.toFixed(1)} kWh)`,
+        tone: energyChangePercent > 0 ? "warning" : "normal",
+      },
+      {
+        label: options?.energySubNote ?? "Lũy kế trong ngày (00:00–17:00 · kWh)",
+      },
+    ];
+  }
+
   return [
     {
       id: "device-health",
       label: "Tình trạng thiết bị",
       value: `${onlineCount} / ${deviceCount}`,
       icon: "devices",
-      details: [
-        { label: `${onlineCount} Online`, tone: "online" },
-        { label: `${offlineCount} Offline`, tone: "offline" },
-      ],
+      details: deviceDetails,
     },
     {
       id: "alerts",
@@ -272,18 +324,10 @@ export function buildOverviewKpis(
     },
     {
       id: "energy-today",
-      label: "Điện năng hôm nay",
-      value: `${energyTotal.toFixed(1)} kWh`,
+      label: energyLabel,
+      value: energyValue,
       icon: "energy",
-      details: [
-        {
-          label: `${energyChangePercent > 0 ? "+" : energyChangePercent < 0 ? "-" : ""}${Math.abs(energyChangePercent).toFixed(1)}% so với cả ngày hôm qua (${yesterdayKwh.toFixed(1)} kWh)`,
-          tone: energyChangePercent > 0 ? "warning" : "normal",
-        },
-        {
-          label: "Lũy kế trong ngày (00:00–17:00 · kWh)",
-        },
-      ],
+      details: energyDetails,
     },
   ];
 }

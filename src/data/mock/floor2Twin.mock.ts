@@ -55,6 +55,26 @@ export const floor2SimulationDevices: readonly TwinDeviceSeed[] = [
     primaryMetric: "Kết nối",
     lastSeenMinutesAgo: 14,
   },
+  {
+    id: "device-cam-f2-01",
+    roomId: "room-lobby-02",
+    name: "CAM-F2-01",
+    type: "Camera",
+    status: "normal",
+    sensorIds: ["sensor-cam-f2-01"],
+    primaryMetric: "Luồng video",
+    lastSeenMinutesAgo: 1,
+  },
+  {
+    id: "device-cam-f2-02",
+    roomId: "room-corridor-02",
+    name: "CAM-F2-02",
+    type: "Camera",
+    status: "normal",
+    sensorIds: ["sensor-cam-f2-02"],
+    primaryMetric: "Luồng video",
+    lastSeenMinutesAgo: 1,
+  },
 ];
 
 export const floor2SimulationSensors: readonly TwinSensor[] = [
@@ -107,6 +127,26 @@ export const floor2SimulationSensors: readonly TwinSensor[] = [
     unit: "state",
     status: "offline",
     value: 0,
+  },
+  {
+    id: "sensor-cam-f2-01",
+    roomId: "room-lobby-02",
+    deviceId: "device-cam-f2-01",
+    name: "CAM-F2-01 stream",
+    metric: "connection",
+    unit: "state",
+    status: "normal",
+    value: 1,
+  },
+  {
+    id: "sensor-cam-f2-02",
+    roomId: "room-corridor-02",
+    deviceId: "device-cam-f2-02",
+    name: "CAM-F2-02 stream",
+    metric: "connection",
+    unit: "state",
+    status: "normal",
+    value: 1,
   },
 ];
 

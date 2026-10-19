@@ -2,8 +2,10 @@ import { act, cleanup, fireEvent, render, screen, within } from "@testing-librar
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import App from "../../app/App";
 import { router } from "../../app/router";
+import { computeCalendarMaintenanceStatus } from "../../features/assets/maintenanceData";
 import { useAuthStore } from "../../features/auth/authStore";
 import { useLoginTransitionStore } from "../../features/auth/loginTransitionStore";
+import { getLocalTodayIso } from "../../features/dashboard/dateFilterUtils";
 import { useTwinStore } from "../../features/twin/twinStore";
 
 async function openAssetsPage(query = "", floorId = "ics-headquarters-all-floors") {
@@ -151,16 +153,23 @@ describe("AssetsPage (Tài sản & bảo trì)", () => {
     expect(screen.queryByText("Bảo dưỡng định kỳ máy nén & nạp gas bổ sung")).toBeNull(); // AC-07 plan filtered out
   });
 
-  it("distinguishes due status from execution progress status in Plans table", async () => {
+  it("distinguishes due status from execution progress status in Plans table with dynamic calendar days", async () => {
     await openAssetsPage();
 
     fireEvent.click(screen.getByRole("tab", { name: /kế hoạch bảo trì/i }));
 
+    const todayIso = getLocalTodayIso();
+    const expectedCoilStatus = computeCalendarMaintenanceStatus("2026-03-25", todayIso);
+    const expectedFiltersStatus = computeCalendarMaintenanceStatus("2026-07-15", todayIso);
+    const expectedSafetyStatus = computeCalendarMaintenanceStatus("2026-11-20", todayIso);
+
     // Overdue coil cleaning plan for AC-07 is "Đã lên lịch" (progress) but "Quá hạn" (due status)
     expect(screen.getByText("Vệ sinh khử khuẩn dàn lạnh & máng nước ngưng")).toBeTruthy();
-    expect(screen.getByText("Quá hạn 17 ngày")).toBeTruthy();
+    expect(screen.getByText(expectedCoilStatus.remainingLabel)).toBeTruthy();
+    expect(screen.getByText(expectedFiltersStatus.remainingLabel)).toBeTruthy();
+    expect(screen.getByText(expectedSafetyStatus.remainingLabel)).toBeTruthy();
     expect(screen.getAllByText("Đã lên lịch").length).toBeGreaterThan(0);
-    expect(screen.getByText("Quá hạn")).toBeTruthy();
+    expect(screen.getAllByText("Quá hạn").length).toBeGreaterThan(0);
   });
 
   it("restricts maintenance recording to Admin and hides action button for Viewer", async () => {

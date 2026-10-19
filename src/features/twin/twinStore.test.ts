@@ -17,9 +17,9 @@ describe("Twin simulation store", () => {
     expect(serverRoom?.temperature).toBe(25.4);
     expect(serverRoom?.status).toBe("normal");
     expect(state.alerts.filter((alert) => alert.status === "active")).toHaveLength(8);
-    expect(state.rooms.reduce((total, room) => total + room.deviceCount, 0)).toBe(46);
-    expect(state.rooms.reduce((total, room) => total + room.onlineDeviceCount, 0)).toBe(42);
-    expect(state.rooms.filter((room) => room.floorId === "ics-headquarters-floor-2")).toHaveLength(5);
+    expect(state.rooms.reduce((total, room) => total + room.deviceCount, 0)).toBe(52);
+    expect(state.rooms.reduce((total, room) => total + room.onlineDeviceCount, 0)).toBe(48);
+    expect(state.rooms.filter((room) => room.floorId === "ics-headquarters-floor-2")).toHaveLength(6);
     expect(state.energyHistory.at(-1)?.kwh).toBe(266.6);
   });
 

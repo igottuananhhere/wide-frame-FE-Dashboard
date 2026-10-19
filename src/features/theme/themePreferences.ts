@@ -1,19 +1,26 @@
 export type DashboardTheme = "dark" | "light";
 
 export const DASHBOARD_THEME_STORAGE_KEY = "ics-digital-twin-theme";
+const DEFAULT_LIGHT_MIGRATION_KEY = "ics-digital-twin-theme-default-light";
 export const SIDEBAR_COLLAPSED_STORAGE_KEY = "ics-digital-twin-sidebar-collapsed";
 export const SIDEBAR_PINNED_STORAGE_KEY = "ics-digital-twin-sidebar-pinned";
 
 export function readDashboardTheme(): DashboardTheme {
   try {
-    return window.localStorage.getItem(DASHBOARD_THEME_STORAGE_KEY) === "light" ? "light" : "dark";
+    if (window.localStorage.getItem(DEFAULT_LIGHT_MIGRATION_KEY) !== "1") {
+      window.localStorage.setItem(DEFAULT_LIGHT_MIGRATION_KEY, "1");
+      window.localStorage.setItem(DASHBOARD_THEME_STORAGE_KEY, "light");
+      return "light";
+    }
+    return window.localStorage.getItem(DASHBOARD_THEME_STORAGE_KEY) === "dark" ? "dark" : "light";
   } catch {
-    return "dark";
+    return "light";
   }
 }
 
 export function persistDashboardTheme(theme: DashboardTheme): void {
   try {
+    window.localStorage.setItem(DEFAULT_LIGHT_MIGRATION_KEY, "1");
     window.localStorage.setItem(DASHBOARD_THEME_STORAGE_KEY, theme);
   } catch {
     // Keep the theme usable when browser storage is disabled.

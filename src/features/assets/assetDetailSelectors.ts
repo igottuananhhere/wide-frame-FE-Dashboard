@@ -1,5 +1,6 @@
 import { floor1AssetIdentities } from "../../data/mock/floor1AssetIdentities.mock";
 import { floor2AssetIdentities } from "../../data/mock/floor2AssetIdentities.mock";
+import { formatIsoDateVi, getLocalTodayIso } from "../dashboard/dateFilterUtils";
 import type { AssetException } from "../dashboard/types";
 import type { TwinAlert, TwinDevice, TwinSensor, TwinSimulationEvent } from "../twin/types";
 import type { FloorRoomSnapshot } from "../floor/types";
@@ -10,7 +11,8 @@ import {
   resolveAssetPriority,
 } from "./priorityRules";
 import { formatLastSeen } from "../devices/deviceSelectors";
-import type { AssetDigitalIdentity } from "./types";
+import { initialMaintenancePlans, resolveMaintenancePlans } from "./maintenanceData";
+import type { AssetDigitalIdentity, MaintenancePlanItem } from "./types";
 
 export type DeviceCategory = "air-conditioner" | "sensor" | "controller" | "lighting" | "generic";
 
@@ -102,6 +104,8 @@ export interface AssetOperationalContext {
     percentComplete: number;
     explanation: string;
   };
+  maintenancePlans: MaintenancePlanItem[];
+  referenceDateLabel: string;
   maintenanceHistory: MaintenanceRecordItem[];
 
   // Timeline / Logs
@@ -156,6 +160,7 @@ export interface ResolveAssetContextOptions {
   energyReadings?: readonly DeviceEnergyReading[];
   events?: readonly TwinSimulationEvent[];
   buildingName?: string;
+  referenceDateIso?: string;
 }
 
 export function resolveAssetOperationalContext(
@@ -171,7 +176,10 @@ export function resolveAssetOperationalContext(
     energyReadings = [],
     events = [],
     buildingName = "ICS Headquarters",
+    referenceDateIso,
   } = options;
+  const effectiveRefDateIso = referenceDateIso ?? getLocalTodayIso();
+  const referenceDateLabel = formatIsoDateVi(effectiveRefDateIso);
 
   const device = devices.find((d) => d.id === item.deviceId || d.name === item.id);
   const assetIdentity = findAssetDigitalIdentity(item.assetId ?? device?.assetId, item.deviceId);
@@ -450,6 +458,15 @@ export function resolveAssetOperationalContext(
     };
   }
 
+  // 8b. Scheduled Maintenance Plans (runtime + calendar)
+  const maintenancePlans = resolveMaintenancePlans(
+    initialMaintenancePlans.filter(
+      (p) => (assetIdentity && p.assetId === assetIdentity.id) || (item.deviceId && p.deviceId === item.deviceId),
+    ),
+    devices,
+    effectiveRefDateIso,
+  );
+
   // 9. Maintenance History (realistic historical records)
   const maintenanceHistory: MaintenanceRecordItem[] = [];
   if (assetIdentity) {
@@ -606,9 +623,12 @@ export function resolveAssetOperationalContext(
     metrics,
     relatedAlerts,
     maintenanceCycleInfo,
+    maintenancePlans,
+    referenceDateLabel,
     maintenanceHistory,
     timelineLogs,
     relationships,
     fullProfileUrl,
   };
 }
+

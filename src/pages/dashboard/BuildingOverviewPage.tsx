@@ -1,4 +1,4 @@
-import { lazy, Suspense, useMemo } from "react";
+import { lazy, Suspense, useMemo, useState } from "react";
 import { Activity, ArrowUpRight, BellRing, Building2, Zap } from "lucide-react";
 import AlertItem from "../../components/dashboard/AlertItem";
 import AssetExceptionsSection from "../../components/dashboard/AssetExceptionsSection";
@@ -7,6 +7,13 @@ import DetailStatCard from "../../components/dashboard/DetailStatCard";
 import ScopedDashboardLink from "../../components/common/ScopedDashboardLink";
 import BuildingFloorSelector from "../../components/layout/BuildingFloorSelector";
 import MetricCard from "../../components/dashboard/MetricCard";
+import OverviewDateFilter from "../../components/dashboard/OverviewDateFilter";
+import {
+  type DateFilterRange,
+  computeDateFilterMetrics,
+  formatIsoDateVi,
+  getLocalTodayIso,
+} from "../../features/dashboard/dateFilterUtils";
 import StatusBadge from "../../components/dashboard/StatusBadge";
 import { ACTIVE_FLOOR_ID, BUILDING_LOCATIONS, DEMO_FLOOR_2_ID } from "../../data/mock/buildingLocations";
 import { floor1EnvironmentThresholds } from "../../data/mock/floor1Environment.mock";
@@ -25,7 +32,7 @@ const EnergyChart = lazy(() => import("../../components/dashboard/EnergyChart"))
 
 export default function BuildingOverviewPage() {
   const scope = useDashboardScopeData();
-  const { location, selectedBuilding, dataFloors, rooms, devices, sensors, alerts, airQualityByRoom, energyDeviceReadings } = scope;
+  const { location, selectedBuilding, dataFloors, rooms: rawRooms, devices, sensors, alerts, airQualityByRoom, energyDeviceReadings } = scope;
   const events = useTwinStore((state) => state.events);
   const acknowledgeAlert = useTwinStore((state) => state.acknowledgeAlert);
   const role = useAuthStore((state) => state.role);
@@ -37,10 +44,112 @@ export default function BuildingOverviewPage() {
   const scopedUpdatedAt = freshness.updatedFloorId
     ? lastUpdatedByFloor[freshness.updatedFloorId]
     : undefined;
-  const floors = selectedBuilding?.floors ?? BUILDING_LOCATIONS[0]?.floors ?? [];
+  const referenceNow = scopedUpdatedAt ?? lastUpdatedByFloor[ACTIVE_FLOOR_ID] ?? 0;
+  const todayIso = useMemo(() => getLocalTodayIso(referenceNow), [referenceNow]);
+  const [selectedRange, setSelectedRange] = useState<DateFilterRange>(() => ({
+    startDate: todayIso,
+    endDate: todayIso,
+  }));
+
+  const prelimDateMetrics = useMemo(
+    () => computeDateFilterMetrics(selectedRange, todayIso, 1, 1),
+    [selectedRange, todayIso],
+  );
+  const floor1BaseEnergy = useMemo(
+    () => rawRooms.filter((r) => r.floorId === ACTIVE_FLOOR_ID).reduce((total, room) => total + room.energyConsumption, 0),
+    [rawRooms],
+  );
+  const scopedBaseEnergy = useMemo(
+    () =>
+      rawRooms
+        .filter((room) => prelimDateMetrics.validFloorIds.includes(room.floorId))
+        .reduce((total, room) => total + room.energyConsumption, 0),
+    [rawRooms, prelimDateMetrics.validFloorIds],
+  );
+  const scopedYesterdayEnergy = useMemo(
+    () =>
+      prelimDateMetrics.validFloorIds.reduce(
+        (total, floorId) =>
+          total +
+          (floorId === ACTIVE_FLOOR_ID
+            ? floor1EnergyComparison.yesterdayKwh
+            : floorId === DEMO_FLOOR_2_ID
+              ? floor2EnergyComparison.yesterdayKwh
+              : 0),
+        0,
+      ),
+    [prelimDateMetrics.validFloorIds],
+  );
+  const dateMetrics = useMemo(
+    () => computeDateFilterMetrics(selectedRange, todayIso, scopedBaseEnergy, scopedYesterdayEnergy),
+    [selectedRange, todayIso, scopedBaseEnergy, scopedYesterdayEnergy],
+  );
+  const rooms = rawRooms;
+  const energyRooms = useMemo(() => {
+    if (!dateMetrics.hasHistoricalData) return [];
+    const validRooms = rawRooms.filter((room) => dateMetrics.validFloorIds.includes(room.floorId));
+    if (dateMetrics.energyScale === 1) return validRooms;
+    const scaled = validRooms.map((room) => ({
+      ...room,
+      energyConsumption: Number((room.energyConsumption * dateMetrics.energyScale).toFixed(1)),
+    }));
+    if (scaled.length > 0) {
+      const targetTotal = Number((scopedBaseEnergy * dateMetrics.energyScale).toFixed(1));
+      const currentSum = Number(scaled.reduce((sum, r) => sum + r.energyConsumption, 0).toFixed(1));
+      const diff = Number((targetTotal - currentSum).toFixed(1));
+      if (diff !== 0) {
+        scaled[0] = {
+          ...scaled[0]!,
+          energyConsumption: Number((scaled[0]!.energyConsumption + diff).toFixed(1)),
+        };
+      }
+    }
+    return scaled;
+  }, [rawRooms, dateMetrics, scopedBaseEnergy]);
+
+  const floors = useMemo(
+    () => selectedBuilding?.floors ?? BUILDING_LOCATIONS[0]?.floors ?? [],
+    [selectedBuilding],
+  );
+  const validEnergyFloorNames = useMemo(
+    () =>
+      floors
+        .filter((f) => dateMetrics.validFloorIds.includes(f.id))
+        .map((f) => f.name),
+    [floors, dateMetrics.validFloorIds],
+  );
+  const validFloorScopeLabel = validEnergyFloorNames.length > 0 ? validEnergyFloorNames.join(" + ") : "Chưa có dữ liệu";
+
+  const buildingEnergyChartData = useMemo(() => {
+    if (!dateMetrics.hasHistoricalData || !dateMetrics.hasHourlySeries) return [];
+    const floor1Series = energyHistoryByFloor[ACTIVE_FLOOR_ID] ?? [];
+    if (dateMetrics.isToday) {
+      return floor1Series;
+    }
+    if (dateMetrics.validFloorIds.includes(DEMO_FLOOR_2_ID)) {
+      const floor2Series = energyHistoryByFloor[DEMO_FLOOR_2_ID] ?? [];
+      if (floor2Series.length === floor1Series.length && floor2Series.length > 0) {
+        return floor1Series.map((point, index) => ({
+          time: point.time,
+          kwh: Number((point.kwh + (floor2Series[index]?.kwh ?? 0)).toFixed(1)),
+        }));
+      }
+      const ratio = floor1BaseEnergy > 0 ? scopedBaseEnergy / floor1BaseEnergy : 1;
+      return floor1Series.map((point) => ({
+        ...point,
+        kwh: Number((point.kwh * ratio).toFixed(1)),
+      }));
+    }
+    return floor1Series.map((point) => ({
+      ...point,
+      kwh: Number((point.kwh * dateMetrics.hourlyScale).toFixed(1)),
+    }));
+  }, [energyHistoryByFloor, dateMetrics, floor1BaseEnergy, scopedBaseEnergy]);
+
   const unresolvedAlerts = alerts.filter(isUnresolvedIncident);
   const unacknowledgedCount = unresolvedAlerts.filter((alert) => alert.status === "active").length;
   const acknowledgedCount = unresolvedAlerts.filter((alert) => alert.status === "acknowledged").length;
+  const resolvedCount = alerts.filter((alert) => alert.status === "resolved").length;
   const environmentReadings = useMemo(
     () => buildAreaEnvironmentReadings(rooms, airQualityByRoom, floor1EnvironmentThresholds),
     [rooms, airQualityByRoom],
@@ -57,12 +166,56 @@ export default function BuildingOverviewPage() {
   const knownDeviceCount = rooms.reduce((total, room) => total + room.deviceCount, 0);
   const onlineDeviceCount = rooms.reduce((total, room) => total + room.onlineDeviceCount, 0);
   const offlineDeviceCount = rooms.reduce((total, room) => total + room.offlineDeviceCount, 0);
-  const recordedEnergy = rooms.reduce((total, room) => total + room.energyConsumption, 0);
-  const yesterdayEnergy = dataFloors.reduce((total, floor) => total + (floor.id === ACTIVE_FLOOR_ID
-    ? floor1EnergyComparison.yesterdayKwh
-    : floor.id === DEMO_FLOOR_2_ID ? floor2EnergyComparison.yesterdayKwh : 0), 0);
-  const energyChangePercent = yesterdayEnergy > 0 ? ((recordedEnergy / yesterdayEnergy) - 1) * 100 : 0;
-  const highestEnergyArea = [...rooms].sort((first, second) => second.energyConsumption - first.energyConsumption)[0];
+  const aggregatedDeviceCount = Math.max(0, knownDeviceCount - devices.length);
+
+  const recordedEnergy = Number(
+    energyRooms.reduce((total, room) => total + room.energyConsumption, 0).toFixed(1),
+  );
+  const comparisonYesterday = scopedYesterdayEnergy;
+  const energyChangePercent =
+    dateMetrics.hasPreviousPeriodComparison && comparisonYesterday > 0
+      ? ((recordedEnergy / comparisonYesterday) - 1) * 100
+      : 0;
+  const highestEnergyArea = useMemo(
+    () => [...energyRooms].sort((first, second) => second.energyConsumption - first.energyConsumption)[0],
+    [energyRooms],
+  );
+  const highestEnergyFloorName = useMemo(
+    () => floors.find((f) => f.id === highestEnergyArea?.floorId)?.name,
+    [floors, highestEnergyArea],
+  );
+
+  const energyStatLabel = dateMetrics.isToday
+    ? "Điện năng hôm nay (Floor 1)"
+    : dateMetrics.dayCount > 1
+      ? `Điện năng đã ghi nhận (${dateMetrics.dayCount} ngày)`
+      : dateMetrics.isYesterday
+        ? "Điện năng đã ghi nhận hôm qua (Floor 1)"
+        : `Điện năng ngày ${formatIsoDateVi(selectedRange.startDate)}`;
+
+  const energyStatValue = dateMetrics.hasHistoricalData
+    ? `${recordedEnergy.toFixed(1)} kWh`
+    : "Chưa có dữ liệu";
+
+  const energyStatDetail = !dateMetrics.hasHistoricalData
+    ? "Chưa đủ dữ liệu để so sánh kỳ trước"
+    : !dateMetrics.hasPreviousPeriodComparison
+      ? `Chưa đủ dữ liệu để so sánh kỳ trước · ${validFloorScopeLabel}`
+      : dateMetrics.isToday
+        ? `${energyChangePercent > 0 ? "+" : ""}${energyChangePercent.toFixed(1)}% so với hôm qua (${comparisonYesterday.toFixed(1)} kWh) · 1/${floors.length} tầng có dữ liệu hôm nay (Floor 2 là mẫu tĩnh 08/10)`
+        : `${energyChangePercent > 0 ? "+" : ""}${energyChangePercent.toFixed(1)}% so với ngày 07/10/2026 (${comparisonYesterday.toFixed(1)} kWh) · ${dateMetrics.validFloorIds.length}/${floors.length} tầng có dữ liệu ngày ${formatIsoDateVi(selectedRange.startDate)}`;
+
+  const energyPanelTitle = dateMetrics.isToday
+    ? "Điện năng ghi nhận hôm nay"
+    : dateMetrics.dayCount > 1
+      ? `Điện năng ghi nhận (${formatIsoDateVi(selectedRange.startDate)} – ${formatIsoDateVi(selectedRange.endDate)})`
+      : `Điện năng ghi nhận ngày ${formatIsoDateVi(selectedRange.startDate)}`;
+
+  const energyScopeNote = dateMetrics.isToday
+    ? `Floor 2 · dữ liệu mẫu tĩnh ngày ${floor2MonthlyEnergyForecast.readingDate.split("-").reverse().join("/")} không gộp vào xu hướng hôm nay`
+    : dateMetrics.isStaticSampleDate
+      ? "Tổng hợp cùng ngày mẫu 08/10/2026 của Floor 1 (125.6 kWh) và Floor 2 (141.0 kWh)"
+      : `Phạm vi dữ liệu năng lượng: ${validFloorScopeLabel}`;
 
   return (
     <section className="dashboard-page building-overview-page" aria-labelledby="building-overview-title">
@@ -87,6 +240,11 @@ export default function BuildingOverviewPage() {
               {formatTelemetryTime(scopedUpdatedAt)}
             </time>
           )}
+          <OverviewDateFilter
+            selectedRange={selectedRange}
+            todayIso={todayIso}
+            onRangeChange={setSelectedRange}
+          />
           <span className="building-coverage-pill"><Building2 aria-hidden="true" size={15} /> {dataFloors.length}/{floors.length} tầng có dữ liệu</span>
           <BuildingFloorSelector
             buildingId={location.buildingId}
@@ -98,10 +256,10 @@ export default function BuildingOverviewPage() {
       </header>
 
       <section className="detail-stat-grid building-overview-stats" aria-label="Tóm tắt dữ liệu vận hành đang có">
-        <DetailStatCard label="Tầng có dữ liệu" value={`${dataFloors.length} / ${floors.length}`} detail={`${dataFloors.map((floor) => floor.name).join(" + ")} · mô phỏng`} icon={Building2} tone="cyan" />
-        <DetailStatCard label="Thiết bị đã ghi nhận" value={`${onlineDeviceCount} / ${knownDeviceCount}`} detail={`${offlineDeviceCount} offline · ${rooms.length} khu vực có dữ liệu`} icon={Activity} tone={offlineDeviceCount ? "amber" : "green"} />
-        <DetailStatCard label="Sự cố chưa giải quyết" value={String(unresolvedAlerts.length)} detail={`${unacknowledgedCount} chưa tiếp nhận · ${acknowledgedCount} đang xử lý`} icon={BellRing} tone={unresolvedAlerts.some((alert) => alert.severity === "critical") ? "red" : unresolvedAlerts.length ? "amber" : "green"} />
-        <DetailStatCard label="Điện năng đã ghi nhận hôm nay" value={`${recordedEnergy.toFixed(1)} kWh`} detail={`${energyChangePercent > 0 ? "+" : ""}${energyChangePercent.toFixed(1)}% so với hôm qua`} icon={Zap} tone="cyan" />
+        <DetailStatCard label="Tầng có dữ liệu" value={`${dataFloors.length} / ${floors.length}`} detail="Floor 1 (mô phỏng hôm nay · 4 CAM) + Floor 2 (mẫu tĩnh 08/10/2026 · 2 CAM)" icon={Building2} tone="cyan" />
+        <DetailStatCard label="Thiết bị đã ghi nhận" value={`${onlineDeviceCount} / ${knownDeviceCount}`} detail={`${offlineDeviceCount} offline · ${devices.length} định danh riêng (gồm 6/12 camera toàn tòa) + ${aggregatedDeviceCount} gộp theo phòng`} icon={Activity} tone={offlineDeviceCount ? "amber" : "green"} />
+        <DetailStatCard label="Sự cố chưa giải quyết" value={String(unresolvedAlerts.length)} detail={`${unacknowledgedCount} chưa tiếp nhận · ${acknowledgedCount} đang xử lý (chưa giải quyết) · ${resolvedCount} đã giải quyết`} icon={BellRing} tone={unresolvedAlerts.some((alert) => alert.severity === "critical") ? "red" : unresolvedAlerts.length ? "amber" : "green"} />
+        <DetailStatCard label={energyStatLabel} value={energyStatValue} detail={energyStatDetail} icon={Zap} tone="cyan" />
       </section>
 
       <div className="building-command-grid building-command-grid--map-first">
@@ -110,6 +268,9 @@ export default function BuildingOverviewPage() {
             <div>
               <p className="section-eyebrow">ƯU TIÊN XỬ LÝ · CÁC TẦNG CÓ DỮ LIỆU</p>
               <h2 id="building-attention-title">Sự cố chưa giải quyết</h2>
+              <p className="attention-panel-scope-note">
+                Trạng thái hiện tại · Không lọc theo ngày lịch sử ({unacknowledgedCount} chưa tiếp nhận · {acknowledgedCount} đang xử lý · {resolvedCount} đã giải quyết)
+              </p>
             </div>
             <span className="attention-total">{unresolvedAlerts.length}</span>
           </header>
@@ -137,27 +298,42 @@ export default function BuildingOverviewPage() {
         <section className="overview-panel energy-panel" aria-labelledby="building-energy-title">
           <header className="overview-panel-heading">
             <div>
-              <p className="section-eyebrow">NĂNG LƯỢNG · TỔNG CÁC TẦNG CÓ DỮ LIỆU</p>
-              <h2 id="building-energy-title">Điện năng ghi nhận hôm nay</h2>
+              <p className="section-eyebrow">NĂNG LƯỢNG · {validFloorScopeLabel.toUpperCase()}</p>
+              <h2 id="building-energy-title">{energyPanelTitle}</h2>
             </div>
             <div className="energy-total">
-              <strong>{recordedEnergy.toFixed(1)} kWh</strong>
-              <span>{energyChangePercent > 0 ? "+" : ""}{energyChangePercent.toFixed(1)}%</span>
+              <strong>{dateMetrics.hasHistoricalData ? `${recordedEnergy.toFixed(1)} kWh` : "Chưa có dữ liệu"}</strong>
+              <span>
+                {dateMetrics.hasHistoricalData && dateMetrics.hasPreviousPeriodComparison
+                  ? `${energyChangePercent > 0 ? "+" : ""}${energyChangePercent.toFixed(1)}%`
+                  : "Chưa đủ dữ liệu để so sánh kỳ trước"}
+              </span>
             </div>
           </header>
           <Suspense fallback={<div className="energy-chart energy-chart--loading" role="status">Đang tải biểu đồ năng lượng…</div>}>
             <EnergyChart
-              data={energyHistoryByFloor[ACTIVE_FLOOR_ID] ?? []}
-              source="current-day"
-              scopeLabel="Floor 1"
-              scopeNote={`Floor 2 · dữ liệu mẫu tĩnh ngày ${floor2MonthlyEnergyForecast.readingDate.split("-").reverse().join("/")} không gộp vào xu hướng hôm nay`}
+              data={buildingEnergyChartData}
+              source={dateMetrics.isToday ? "current-day" : "dated-sample"}
+              sampleDate={dateMetrics.isToday ? undefined : selectedRange.startDate}
+              scopeLabel={validFloorScopeLabel}
+              scopeNote={energyScopeNote}
             />
           </Suspense>
           <div className="energy-highest-area">
             <span>Khu vực dùng điện cao nhất</span>
-            <strong>{highestEnergyArea?.name ?? "—"} · {highestEnergyArea?.energyConsumption.toFixed(1) ?? "0.0"} kWh</strong>
+            <strong>
+              {dateMetrics.hasHistoricalData && highestEnergyArea
+                ? `${highestEnergyArea.name}${highestEnergyFloorName ? ` (${highestEnergyFloorName})` : ""} · ${highestEnergyArea.energyConsumption.toFixed(1)} kWh`
+                : "Chưa có dữ liệu"}
+            </strong>
           </div>
-          <p className="building-data-note">Đang cộng {dataFloors.length} tầng có dữ liệu · {yesterdayEnergy.toFixed(1)} kWh hôm qua. Floors chưa cấu hình không được tính.</p>
+          <p className="building-data-note">
+            {dateMetrics.isToday
+              ? `Đang tính 1/${floors.length} tầng có dữ liệu hôm nay (Floor 1 · ${comparisonYesterday.toFixed(1)} kWh hôm qua). Floor 2 (mẫu tĩnh 08/10/2026) và Floors 3–5 chưa cấu hình không được gộp vào hôm nay.`
+              : dateMetrics.hasHistoricalData
+                ? `Đang tổng hợp ${dateMetrics.validFloorIds.length}/${floors.length} tầng có dữ liệu (${validFloorScopeLabel})${dateMetrics.hasPreviousPeriodComparison ? ` · kỳ trước ${comparisonYesterday.toFixed(1)} kWh` : ""}. Floors chưa có dữ liệu ngày này không được tính.`
+                : `Chưa có bản ghi lịch sử năng lượng cho kỳ đã chọn (${dateMetrics.periodLabelVi}).`}
+          </p>
           <ScopedDashboardLink className="building-panel-link" to="/dashboard/energy">Chi tiết năng lượng <ArrowUpRight aria-hidden="true" size={14} /></ScopedDashboardLink>
         </section>
 
@@ -204,3 +380,4 @@ export default function BuildingOverviewPage() {
     </section>
   );
 }
+

@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { computeDateFilterMetrics } from "../dashboard/dateFilterUtils";
 import type { AssetException } from "../dashboard/types";
 import type { TwinDevice } from "../twin/types";
 import type { FloorRoomSnapshot } from "../floor/types";
@@ -7,6 +8,11 @@ import {
   findAssetDigitalIdentity,
   resolveAssetOperationalContext,
 } from "./assetDetailSelectors";
+import {
+  computeCalendarMaintenanceStatus,
+  initialMaintenancePlans,
+  resolveMaintenancePlans,
+} from "./maintenanceData";
 
 const mockDevices: TwinDevice[] = [
   {
@@ -89,7 +95,7 @@ describe("assetDetailSelectors", () => {
     expect(ut01).toBeUndefined();
   });
 
-  it("resolves operational context for an air conditioner with maintenance due soon", () => {
+  it("resolves operational context for an air conditioner with maintenance due soon and dynamic calendar plans", () => {
     const item: AssetException = {
       id: "AC-03",
       deviceId: "device-ac-03",
@@ -105,6 +111,7 @@ describe("assetDetailSelectors", () => {
     const context = resolveAssetOperationalContext(item, {
       devices: mockDevices,
       rooms: mockRooms,
+      referenceDateIso: "2026-10-18",
     });
 
     expect(context.category).toBe("air-conditioner");
@@ -115,11 +122,99 @@ describe("assetDetailSelectors", () => {
     expect(context.maintenanceCycleInfo?.remainingHours).toBe(12);
     expect(context.maintenanceCycleInfo?.explanation).toContain("không tương đương với số giờ đồng hồ");
     expect(context.assetIdentity).toBeDefined();
+    expect(context.referenceDateLabel).toBe("18/10/2026");
+
+    const filtersPlan = context.maintenancePlans.find((p) => p.id === "plan-ac03-filters");
+    expect(filtersPlan?.dueStatus).toBe("overdue");
+    expect(filtersPlan?.remainingDays).toBe(-95);
+    expect(filtersPlan?.remainingLabel).toBe("Quá hạn 95 ngày");
+
+    const safetyPlan = context.maintenancePlans.find((p) => p.id === "plan-ac03-electrical-safety");
+    expect(safetyPlan?.dueStatus).toBe("normal");
+    expect(safetyPlan?.remainingDays).toBe(33);
+    expect(safetyPlan?.remainingLabel).toBe("Còn 33 ngày");
 
     // Check room temperature is marked as room sensor, not built-in AC sensor
     const roomTempMetric = context.metrics.find((m) => m.id === "room-temp");
     expect(roomTempMetric).toBeDefined();
     expect(roomTempMetric?.confirmationNote).toContain("không phải cảm biến tích hợp");
+  });
+
+  it("calculates calendar maintenance status accurately for before-due, due-today, and overdue dates on 2026-10-18", () => {
+    const refDate = "2026-10-18";
+
+    const overdueJuly = computeCalendarMaintenanceStatus("2026-07-15", refDate);
+    expect(overdueJuly).toEqual({
+      remainingDays: -95,
+      remainingLabel: "Quá hạn 95 ngày",
+      dueStatus: "overdue",
+    });
+
+    const overdueMarch = computeCalendarMaintenanceStatus("2026-03-25", refDate);
+    expect(overdueMarch).toEqual({
+      remainingDays: -207,
+      remainingLabel: "Quá hạn 207 ngày",
+      dueStatus: "overdue",
+    });
+
+    const dueToday = computeCalendarMaintenanceStatus("2026-10-18", refDate);
+    expect(dueToday).toEqual({
+      remainingDays: 0,
+      remainingLabel: "Đến hạn hôm nay",
+      dueStatus: "due",
+    });
+
+    const dueSoon = computeCalendarMaintenanceStatus("2026-10-25", refDate);
+    expect(dueSoon).toEqual({
+      remainingDays: 7,
+      remainingLabel: "Còn 7 ngày",
+      dueStatus: "due-soon",
+    });
+
+    const normalNov = computeCalendarMaintenanceStatus("2026-11-20", refDate);
+    expect(normalNov).toEqual({
+      remainingDays: 33,
+      remainingLabel: "Còn 33 ngày",
+      dueStatus: "normal",
+    });
+
+    const resolved = resolveMaintenancePlans(initialMaintenancePlans, mockDevices, refDate);
+    expect(resolved.find((p) => p.id === "plan-ac07-coil-cleaning")?.floorId).toBe("ics-headquarters-floor-2");
+    expect(resolved.find((p) => p.id === "plan-ac07-coil-cleaning")?.remainingLabel).toBe("Quá hạn 207 ngày");
+  });
+
+  it("computes honest date filter metrics without fabricated hash numbers", () => {
+    const todayMetrics = computeDateFilterMetrics(
+      { startDate: "2026-10-18", endDate: "2026-10-18" },
+      "2026-10-18",
+      125.6,
+      116.1,
+    );
+    expect(todayMetrics.hasHistoricalData).toBe(true);
+    expect(todayMetrics.hasHourlySeries).toBe(true);
+    expect(todayMetrics.validFloorIds).toEqual(["ics-headquarters-floor-1"]);
+
+    const sampleDayMetrics = computeDateFilterMetrics(
+      { startDate: "2026-10-08", endDate: "2026-10-08" },
+      "2026-10-18",
+      266.6,
+      248.5,
+    );
+    expect(sampleDayMetrics.hasHistoricalData).toBe(true);
+    expect(sampleDayMetrics.hasHourlySeries).toBe(true);
+    expect(sampleDayMetrics.validFloorIds).toEqual(["ics-headquarters-floor-1", "ics-headquarters-floor-2"]);
+
+    const unrecordedMetrics = computeDateFilterMetrics(
+      { startDate: "2026-10-01", endDate: "2026-10-01" },
+      "2026-10-18",
+      125.6,
+      116.1,
+    );
+    expect(unrecordedMetrics.hasHistoricalData).toBe(false);
+    expect(unrecordedMetrics.hasHourlySeries).toBe(false);
+    expect(unrecordedMetrics.hasPreviousPeriodComparison).toBe(false);
+    expect(unrecordedMetrics.energyScale).toBe(0);
+    expect(unrecordedMetrics.validFloorIds).toEqual([]);
   });
 
   it("resolves operational context for an offline controller without assuming connected equipment is off", () => {
@@ -183,3 +278,4 @@ describe("assetDetailSelectors", () => {
     expect(metric?.confirmationNote).toContain("Dữ liệu ghi nhận trước thời điểm mất kết nối");
   });
 });
+
