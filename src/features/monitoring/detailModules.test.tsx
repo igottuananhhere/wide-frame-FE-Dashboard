@@ -68,22 +68,17 @@ describe("Phase 6 detail monitoring modules", () => {
     expect(screen.getByRole("table", { name: /energy by device/i })).toBeTruthy();
   });
 
-  it("shows Floor 2 energy, meter forecast and its own room data", async () => {
+  it("shows Out of Demo Scope state on Energy page when Floor 2 is selected", async () => {
     await openPage("/dashboard/energy", "ics-headquarters-floor-2");
 
-    expect(await screen.findByRole("heading", { name: /năng lượng floor 2/i })).toBeTruthy();
-    expect(screen.getByText("141.0 kWh")).toBeTruthy();
-    expect(screen.getByText("132.4 kWh", { exact: false })).toBeTruthy();
-    expect(screen.getByText(/METER FORECAST · METER-02/i)).toBeTruthy();
-    const areaPanel = screen.getByRole("region", { name: /điện năng theo khu vực/i });
-    expect(within(areaPanel).getByText("Khu làm việc 2A")).toBeTruthy();
-    expect(screen.queryByText("Khu làm việc", { exact: true })).toBeNull();
+    expect(await screen.findByRole("heading", { name: /Floor 2 — Ngoài phạm vi demo/i })).toBeTruthy();
+    expect(screen.getByText(/Phạm vi vận hành demo hiện tại chỉ bao gồm/i)).toBeTruthy();
   });
 
   it("shows a Floor 1 waste estimate on energy detail without including Floor 2 sample data", async () => {
     await openPage("/dashboard/energy", "ics-headquarters-floor-1");
 
-    const wasteCardLabel = await screen.findByText("Điện lãng phí (ước tính)");
+    const wasteCardLabel = await screen.findByText("Điện vượt mức tham chiếu — ước tính");
     const wasteCard = wasteCardLabel.closest("article");
     expect(wasteCard?.textContent).toContain("0.0 kWh");
     expect(wasteCard?.textContent).toContain("0 VND");
@@ -92,30 +87,14 @@ describe("Phase 6 detail monitoring modules", () => {
     fireEvent.change(screen.getByRole("combobox", { name: "Floor" }), {
       target: { value: "ics-headquarters-floor-2" },
     });
-    expect(await screen.findByRole("heading", { name: /Năng lượng Floor 2/i })).toBeTruthy();
-    expect(screen.queryByText("Điện lãng phí (ước tính)")).toBeNull();
+    expect(await screen.findByRole("heading", { name: /Floor 2 — Ngoài phạm vi demo/i })).toBeTruthy();
+    expect(screen.queryByText("Điện vượt mức tham chiếu — ước tính")).toBeNull();
 
     fireEvent.change(screen.getByRole("combobox", { name: "Floor" }), {
       target: { value: "ics-headquarters-all-floors" },
     });
     expect(await screen.findByRole("heading", { name: "Năng lượng toàn tòa nhà" })).toBeTruthy();
-    expect(screen.queryByText("Điện lãng phí (ước tính)")).toBeNull();
   }, 15000);
-
-  it("labels Floor 2 cumulative energy as a dated static sample", async () => {
-    await openPage("/dashboard/energy", "ics-headquarters-floor-2");
-
-    expect(await screen.findByRole(
-      "img",
-      { name: /Floor 2 cumulative energy \(kWh\).*08\/10\/2026/i },
-      { timeout: 5000 },
-    ))
-      .toBeTruthy();
-    const chart = document.querySelector(".detail-module-page .energy-chart");
-    expect(chart?.getAttribute("aria-label")).toMatch(/Floor 2.*cumulative energy.*kWh.*08\/10\/2026/i);
-    expect(document.querySelector(".detail-module-page .energy-chart-caption")?.textContent)
-      .toMatch(/dữ liệu mẫu tĩnh/i);
-  });
 
   it("keeps the building trend scoped to live Floor 1 rather than summing dated Floor 2 samples", async () => {
     await openPage("/dashboard/energy", "ics-headquarters-all-floors");
@@ -128,7 +107,7 @@ describe("Phase 6 detail monitoring modules", () => {
     const chart = document.querySelector(".detail-module-page .energy-chart");
     expect(chart?.getAttribute("aria-label")).toMatch(/Floor 1.*cumulative energy.*kWh/i);
     expect(document.querySelector(".detail-module-page .energy-chart-caption")?.textContent)
-      .toMatch(/Floor 2.*không gộp/i);
+      .toMatch(/Tầng 1 \/ 5 tầng/i);
   });
 
   it("shows area environmental readings and highlights an out-of-range value", async () => {
@@ -154,14 +133,11 @@ describe("Phase 6 detail monitoring modules", () => {
     expect(within(table).getByRole("row", { name: /TEMP-04/i })).toBeTruthy();
   });
 
-  it("shows Floor 2 device records without leaking Floor 1 inventory", async () => {
+  it("does not leak Floor 1 device inventory when Floor 2 is selected", async () => {
     await openPage("/dashboard/devices", "ics-headquarters-floor-2");
 
-    expect(await screen.findByRole("heading", { name: /thiết bị floor 2/i })).toBeTruthy();
-    const table = screen.getByRole("table", { name: /devices in floor 2/i });
-    expect(within(table).getByRole("row", { name: /WS-22/i })).toBeTruthy();
-    expect(within(table).getByRole("row", { name: /UT-02/i })).toBeTruthy();
-    expect(within(table).queryByRole("row", { name: /WS-08/i })).toBeNull();
+    expect(await screen.findByRole("heading", { name: /Floor 2 — Ngoài phạm vi demo/i })).toBeTruthy();
+    expect(screen.queryByRole("row", { name: /WS-08/i })).toBeNull();
   });
 
   it("opens the device named in an exception and filters the device list to it", async () => {
@@ -220,11 +196,11 @@ describe("Phase 6 detail monitoring modules", () => {
 
     const attention = screen.getByRole("region", { name: /sự cố chưa giải quyết/i });
     expect(within(attention).getByText(alert!.title)).toBeTruthy();
-    expect(within(attention).getByText("8", { selector: ".attention-total" })).toBeTruthy();
-    const summary = screen.getByRole("region", { name: /tóm tắt dữ liệu vận hành đang có/i });
+    expect(within(attention).getByText("4", { selector: ".attention-total" })).toBeTruthy();
+    const summary = screen.getByRole("region", { name: /4 chỉ số KPI chính phạm vi demo/i });
     const unresolvedCard = within(summary).getByText("Sự cố chưa giải quyết").closest("article");
     expect(unresolvedCard).toBeTruthy();
-    expect(within(unresolvedCard!).getByText("8")).toBeTruthy();
+    expect(within(unresolvedCard!).getByText("4")).toBeTruthy();
   });
 
   it("shows acknowledged incidents in the floor attention queue", async () => {
@@ -248,10 +224,10 @@ describe("Phase 6 detail monitoring modules", () => {
     expect(document.querySelector(".overview-heading-actions .building-floor-selector")).toBeTruthy();
     expect(document.querySelector(".dashboard-header-live .building-floor-selector")).toBeNull();
     expect(document.querySelector(".dashboard-header-location")).toBeNull();
-    expect(document.querySelector(".dashboard-header .live-indicator")).toBeNull();
+    expect(document.querySelector(".dashboard-header .live-indicator")).toBeTruthy();
     expect(document.querySelector(".dashboard-header .last-sync time")?.getAttribute("aria-label"))
       .toBe("Floor 1 telemetry last updated");
-    expect(document.querySelector(".building-overview-page .overview-live")).toBeNull();
+    expect(document.querySelector(".building-overview-page .overview-live")).toBeTruthy();
   });
 
   it("does not show Floor 1 live status or timestamp when Floor 2 is selected", async () => {
@@ -261,15 +237,13 @@ describe("Phase 6 detail monitoring modules", () => {
       target: { value: "ics-headquarters-floor-2" },
     });
 
-    expect(await screen.findByRole("heading", { name: "Tổng quan vận hành Floor 2" })).toBeTruthy();
+    expect(await screen.findByRole("heading", { name: /Floor 2 — Ngoài phạm vi demo/i })).toBeTruthy();
     const headerStatus = document.querySelector(".dashboard-header .live-indicator");
-    expect(headerStatus?.getAttribute("aria-label")).toBe("Floor 2 static demo data");
-    expect(headerStatus?.textContent).toContain("F2 · MẪU TĨNH");
+    expect(headerStatus?.getAttribute("aria-label")).toBe("Out of demo scope for selected floor");
+    expect(headerStatus?.textContent).toContain("Ngoài phạm vi demo");
     expect(screen.getByRole("combobox", { name: "Floor" }).textContent)
-      .toContain("Floor 2 · Dữ liệu mẫu tĩnh");
+      .toContain("Floor 2 · Ngoài phạm vi demo");
     expect(screen.queryByRole("time", { name: "Floor 1 telemetry last updated" })).toBeNull();
-    expect(document.querySelector(".overview-page-heading .overview-live")?.textContent)
-      .toContain("DỮ LIỆU MẪU TĨNH");
   });
 
   it("shows AC-03 digital identity and reflects simulated maintenance status", async () => {
@@ -343,13 +317,12 @@ describe("Phase 6 detail monitoring modules", () => {
       .toBe("/dashboard/assets?assetId=asset-ac-03&floorId=ics-headquarters-floor-1");
   });
 
-  it("reconciles building energy across 2/5 floors and blocks mismatched yesterday comparison", async () => {
+  it("scopes building energy to Floor 1 (1/5 floors) with honest comparison against yesterday", async () => {
     await openPage("/dashboard/energy", "ics-headquarters-all-floors");
 
     expect(await screen.findByRole("heading", { name: "Năng lượng toàn tòa nhà" })).toBeTruthy();
-    expect(screen.getAllByText(/Tổng hợp tầng 1 và tầng 2 · 2\/5 tầng có dữ liệu/i).length).toBeGreaterThan(0);
-    expect(screen.getByText("266.6 kWh")).toBeTruthy();
-    expect(screen.getByText("Không đủ dữ liệu để so sánh")).toBeTruthy();
+    expect(screen.getAllByText(/Phạm vi vận hành demo: Tầng 1 \/ 5 tầng/i).length).toBeGreaterThan(0);
+    expect(screen.getByText("125.6 kWh")).toBeTruthy();
     expect(screen.queryByRole("region", { name: /điện năng tiêu thụ theo tầng/i })).toBeNull();
 
     // Correlated alerts link area and device in the same room without filter buttons

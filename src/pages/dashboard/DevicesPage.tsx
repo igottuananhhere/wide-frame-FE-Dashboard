@@ -8,6 +8,7 @@ import StatusBadge from "../../components/dashboard/StatusBadge";
 import { filterTwinDevices, formatLastSeen, getPrimaryMetricValue } from "../../features/devices/deviceSelectors";
 import type { DeviceFilter } from "../../features/devices/types";
 import { useDashboardScopeData } from "../../features/building/useDashboardScope";
+import { useTwinStore } from "../../features/twin/twinStore";
 import type { OperationalStatus } from "../../types/models";
 
 const filters: readonly { id: DeviceFilter; label: string }[] = [
@@ -29,6 +30,8 @@ export default function DevicesPage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const scope = useDashboardScopeData();
   const { devices, sensors, rooms } = scope;
+  const lightStates = useTwinStore((state) => state.lightStates);
+  const acStates = useTwinStore((state) => state.acStates);
   const roomId = searchParams.get("roomId");
   const deviceId = searchParams.get("deviceId");
   const selectedRoom = rooms.find((room) => room.id === roomId);
@@ -134,7 +137,7 @@ export default function DevicesPage() {
                   <td>{rooms.find((room) => room.id === device.roomId)?.name ?? "—"}</td>
                   <td><StatusBadge status={device.status} label={statusLabels[device.status]} /></td>
                   <td><time dateTime={device.lastSeenAt}>{formatLastSeen(device.lastSeenAt)}</time></td>
-                  <td>{getPrimaryMetricValue(device, sensors)}</td>
+                  <td>{getPrimaryMetricValue(device, sensors, { lightStates, acStates })}</td>
                 </tr>
               ))}
               {filteredDevices.length === 0 && (

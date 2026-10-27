@@ -53,7 +53,7 @@ export default function BuildingFloorSelector({
       {
         id: ALL_BUILDING_SCOPE_ID,
         name: "Toàn tòa nhà",
-        metaLabel: "Tổng hợp các tầng",
+        metaLabel: "Phạm vi demo: Tầng 1 / 5 tầng",
         fullLabel: "Toàn tòa nhà",
         badgeTone: "scope",
       },
@@ -61,11 +61,11 @@ export default function BuildingFloorSelector({
 
     for (const floor of selectedLocation.floors) {
       const metaLabel = floor.dataAvailability === "not-configured"
-        ? "Chưa có dữ liệu"
-        : floor.id === DEMO_FLOOR_2_ID
-          ? "Dữ liệu mẫu tĩnh"
-          : floor.id === ACTIVE_FLOOR_ID
-            ? "Telemetry mô phỏng"
+        ? "Ngoài phạm vi demo"
+        : floor.id === ACTIVE_FLOOR_ID
+          ? "Dữ liệu mô phỏng"
+          : floor.id === DEMO_FLOOR_2_ID
+            ? "Dữ liệu mẫu"
             : "Dữ liệu mô phỏng";
 
       const badgeTone = floor.dataAvailability === "not-configured"
@@ -243,10 +243,10 @@ export default function BuildingFloorSelector({
           {selectedLocation.floors.map((floor) => (
             <option key={floor.id} value={floor.id}>
               {floor.name}{floor.dataAvailability === "not-configured"
-                ? " · Chưa có dữ liệu"
-                : floor.id === DEMO_FLOOR_2_ID
-                  ? " · Dữ liệu mẫu tĩnh"
-                  : floor.id === ACTIVE_FLOOR_ID ? " · Telemetry mô phỏng" : " · Dữ liệu mô phỏng"}
+                ? " · Ngoài phạm vi demo"
+                : floor.id === ACTIVE_FLOOR_ID
+                  ? " · Dữ liệu mô phỏng"
+                  : floor.id === DEMO_FLOOR_2_ID ? " · Dữ liệu mẫu" : " · Dữ liệu mô phỏng"}
             </option>
           ))}
         </select>

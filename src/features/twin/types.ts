@@ -7,6 +7,12 @@ import type {
   Floor,
   OperationalStatus,
 } from "../../types/models";
+import type {
+  AcControlState,
+  AcMode,
+  EnergySavingRuleState,
+  RoomOccupancyState,
+} from "../../data/mock/roomControls.mock";
 import type { AttentionKind } from "../dashboard/types";
 import type { FloorRoomSnapshot } from "../floor/types";
 import type { EnergyPoint } from "../dashboard/types";
@@ -15,6 +21,8 @@ import type { RoomAirQualityReading } from "../environment/types";
 
 export type SimulationScenario =
   | "server-temperature-high"
+  | "meeting-room-unoccupied-power"
+  | "ac-mt2-offline"
   | "temp-04-offline"
   | "ac-03-maintenance-due"
   | "meeting-room-02-co2-high"
@@ -22,6 +30,30 @@ export type SimulationScenario =
   | "return-normal";
 
 export type SimulationConnectionStatus = "simulation-live" | "simulation-paused";
+
+export type OperatorCommandStatus = "executing" | "executed" | "failed";
+
+export interface OperatorCommandFeedback {
+  id: string;
+  roomId: EntityId;
+  targetLabel: string;
+  actionLabel: string;
+  status: OperatorCommandStatus;
+  message: string;
+  timestamp: number;
+}
+
+export interface OperatorActionLogEntry {
+  id: string;
+  roomId: EntityId;
+  targetId?: string;
+  targetLabel: string;
+  actionLabel: string;
+  actorLabel: string;
+  resultLabel: string;
+  status: OperatorCommandStatus;
+  timestamp: number;
+}
 
 export interface TwinDevice {
   id: EntityId;
@@ -132,6 +164,13 @@ export interface TwinStoreData {
   telemetryStep: number;
   events: TwinSimulationEvent[];
   alertSequence: number;
+  lightStates: Record<string, boolean>;
+  acStates: Record<string, AcControlState>;
+  serverCoolingBoostActive: boolean;
+  roomOccupancyByRoom: Record<string, RoomOccupancyState>;
+  energySavingRulesByRoom: Record<string, EnergySavingRuleState>;
+  lastCommandFeedback: OperatorCommandFeedback | null;
+  actionHistory: OperatorActionLogEntry[];
 }
 
 export interface TwinStoreActions {
@@ -145,6 +184,18 @@ export interface TwinStoreActions {
   advanceTelemetry: () => void;
   setAutomaticTelemetryRunning: (running: boolean) => void;
   resetSimulation: () => void;
+  toggleLight: (lightId: string) => void;
+  toggleAcPower: (acId: string) => void;
+  setAcTemperature: (acId: string, targetTemp: number) => void;
+  setAcMode: (acId: string, mode: AcMode) => void;
+  activateServerCoolingBoost: () => void;
+  setRoomOccupancy: (roomId: EntityId, isOccupied: boolean) => void;
+  fastForwardOccupancyWait: (roomId: EntityId, minutes?: number) => void;
+  setEnergySavingRule: (roomId: EntityId, update: Partial<Pick<EnergySavingRuleState, "enabled" | "autoExecute">>) => void;
+  applyEnergySavingNow: (roomId: EntityId) => void;
+  overrideEnergySavingRule: (roomId: EntityId, durationMinutes?: number) => void;
+  disconnectDevice: (deviceId: EntityId) => void;
+  restoreDeviceConnection: (deviceId: EntityId) => void;
 }
 
 export type TwinStoreState = TwinStoreData & TwinStoreActions;

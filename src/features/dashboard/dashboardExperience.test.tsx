@@ -65,7 +65,7 @@ describe("dashboard wireframe acceptance", () => {
     await act(async () => {
       await router.navigate("/dashboard/overview?floorId=ics-headquarters-floor-2");
     });
-    expect(await screen.findByRole("heading", { name: "Tổng quan vận hành Floor 2" })).toBeTruthy();
+    expect(await screen.findByRole("heading", { name: /Floor 2 — Ngoài phạm vi demo/i })).toBeTruthy();
     expect((screen.getByRole("combobox", { name: "Floor" }) as HTMLSelectElement).value)
       .toBe("ics-headquarters-floor-2");
 
@@ -82,29 +82,14 @@ describe("dashboard wireframe acceptance", () => {
     expect(await screen.findByRole("status", { name: /devices filtered by server room/i })).toBeTruthy();
 
     fireEvent.change(screen.getByRole("combobox", { name: "Floor" }), {
-      target: { value: "ics-headquarters-floor-2" },
+      target: { value: "ics-headquarters-all-floors" },
     });
-    expect(await screen.findByRole("heading", { name: /thiết bị.*floor 2/i })).toBeTruthy();
-    expect(window.location.search).toBe("?floorId=ics-headquarters-floor-2");
+    expect(await screen.findByRole("heading", { name: /thiết bị.*toàn tòa nhà/i })).toBeTruthy();
+    expect(window.location.search).toBe("");
     expect(screen.queryByRole("status", { name: /devices filtered by/i })).toBeNull();
   });
 
-  it("clears a room filter when changing the selected floor", async () => {
-    render(<App />);
-    await act(async () => {
-      await router.navigate("/dashboard/devices?floorId=ics-headquarters-floor-1&roomId=room-server-01");
-    });
-    expect(await screen.findByRole("status", { name: /devices filtered by server room/i })).toBeTruthy();
-
-    fireEvent.change(screen.getByRole("combobox", { name: "Floor" }), {
-      target: { value: "ics-headquarters-floor-2" },
-    });
-    expect(await screen.findByRole("heading", { name: /thiết bị.*floor 2/i })).toBeTruthy();
-    expect(window.location.search).toBe("?floorId=ics-headquarters-floor-2");
-    expect(screen.queryByRole("status", { name: /devices filtered by/i })).toBeNull();
-  });
-
-  it("clears a room-only filter when the floor scope changes", async () => {
+  it("clears a room-only filter when switching to an out-of-demo-scope floor", async () => {
     render(<App />);
     await act(async () => {
       await router.navigate("/dashboard/devices?floorId=ics-headquarters-floor-1&roomId=room-server-01");
@@ -114,7 +99,7 @@ describe("dashboard wireframe acceptance", () => {
     fireEvent.change(screen.getByRole("combobox", { name: "Floor" }), {
       target: { value: "ics-headquarters-floor-2" },
     });
-    expect(await screen.findByRole("heading", { name: /thiết bị.*floor 2/i })).toBeTruthy();
+    expect(await screen.findByRole("heading", { name: /Floor 2 — Ngoài phạm vi demo/i })).toBeTruthy();
     expect(window.location.search).toBe("?floorId=ics-headquarters-floor-2");
     expect(screen.queryByRole("status", { name: /devices filtered by/i })).toBeNull();
   });

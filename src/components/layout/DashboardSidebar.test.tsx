@@ -50,13 +50,13 @@ describe("Sidebar navigation, hover-to-expand, pin/unpin, alert badge, and RBAC 
       "alerts",
       "assets",
       "settings",
-      "digital-twin-3d",
     ]);
 
     const viewerGroups = getNavigationGroupsForRole("Viewer");
     const viewerIds = viewerGroups.flatMap((group) => group.items.map((item) => item.id));
     expect(viewerIds).not.toContain("settings");
-    expect(viewerIds.at(-1)).toBe("digital-twin-3d");
+    expect(viewerIds).not.toContain("digital-twin-3d");
+    expect(viewerIds.at(-1)).toBe("assets");
 
     expect(SIDEBAR_LAYOUT_TOKENS.expandedWidth).toBe("304px");
     expect(SIDEBAR_LAYOUT_TOKENS.collapsedWidth).toBe("72px");
@@ -66,7 +66,7 @@ describe("Sidebar navigation, hover-to-expand, pin/unpin, alert badge, and RBAC 
     expect(getThemeTokens("light").sidebarBg).toBe("#ffffff");
   });
 
-  it("renders navigation items for Overview, Digital Twin 3D, Analytics, IoT Devices, Alerts, Assets, and Settings with active highlighting", async () => {
+  it("renders navigation items for Overview, Energy, Environment, Analytics, IoT Devices, Alerts, Assets, and Settings with 3D hidden", async () => {
     render(<App />);
 
     const nav = screen.getByRole("navigation", { name: "Dashboard navigation" });
@@ -77,24 +77,24 @@ describe("Sidebar navigation, hover-to-expand, pin/unpin, alert badge, and RBAC 
     expect(within(nav).getByText("Alerts")).toBeTruthy();
     expect(within(nav).getByText("Assets")).toBeTruthy();
     expect(within(nav).getByText("Settings")).toBeTruthy();
-    expect(within(nav).getByText("Digital Twin 3D")).toBeTruthy();
+    expect(within(nav).queryByText("Digital Twin 3D")).toBeNull();
 
     fireEvent.click(within(nav).getByRole("link", { name: "Phân tích" }));
     expect(await screen.findByRole("heading", { name: /phân tích vận hành/i })).toBeTruthy();
     expect(within(nav).getByRole("link", { name: "Phân tích" }).getAttribute("aria-current")).toBe("page");
   });
 
-  it("displays live alert count badge on Alerts item and updates when new incidents occur", () => {
+  it("displays live alert count badge on Alerts item for the Floor 1 demo scope and updates when new incidents occur", () => {
     render(<App />);
 
     const badge = screen.getByTestId("sidebar-alert-badge");
-    expect(badge.textContent).toBe("8");
+    expect(badge.textContent).toBe("4");
 
     act(() => {
       useTwinStore.getState().simulateScenario("server-temperature-high");
     });
 
-    expect(screen.getByTestId("sidebar-alert-badge").textContent).toBe("9");
+    expect(screen.getByTestId("sidebar-alert-badge").textContent).toBe("5");
     expect(screen.getByTestId("sidebar-alert-badge").className).toContain("navigation-link-badge--critical");
   });
 
@@ -108,7 +108,6 @@ describe("Sidebar navigation, hover-to-expand, pin/unpin, alert badge, and RBAC 
     expect(sidebar.getAttribute("data-hovered")).toBe("false");
     expect(sidebar.className).toContain("dashboard-sidebar--collapsed");
 
-    // Hover to expand
     fireEvent.mouseEnter(sidebar);
     expect(sidebar.getAttribute("data-collapsed")).toBe("false");
     expect(sidebar.getAttribute("data-expanded")).toBe("true");
@@ -118,7 +117,6 @@ describe("Sidebar navigation, hover-to-expand, pin/unpin, alert badge, and RBAC 
     expect(within(sidebar).getByText("ACTIVE SCOPE")).toBeTruthy();
     expect(within(sidebar).getByText("Toàn tòa nhà")).toBeTruthy();
 
-    // Mouse leave collapses back when unpinned
     fireEvent.mouseLeave(sidebar);
     expect(sidebar.getAttribute("data-collapsed")).toBe("true");
     expect(sidebar.getAttribute("data-expanded")).toBe("false");
@@ -142,14 +140,12 @@ describe("Sidebar navigation, hover-to-expand, pin/unpin, alert badge, and RBAC 
     expect(sessionStorage.getItem(SIDEBAR_PINNED_STORAGE_KEY)).toBe("true");
     expect(sessionStorage.getItem(SIDEBAR_COLLAPSED_STORAGE_KEY)).toBe("false");
 
-    // Leaving the sidebar keeps it open when pinned
     fireEvent.mouseLeave(sidebar);
     expect(sidebar.getAttribute("data-hovered")).toBe("false");
     expect(sidebar.getAttribute("data-pinned")).toBe("true");
     expect(sidebar.getAttribute("data-collapsed")).toBe("false");
     expect(sidebar.className).toContain("dashboard-sidebar--expanded");
 
-    // Clicking the arrow button again unpins and collapses
     const unpinButton = screen.getByRole("button", { name: /unpin and collapse sidebar/i });
     expect(unpinButton.getAttribute("aria-pressed")).toBe("true");
     fireEvent.click(unpinButton);
@@ -168,16 +164,13 @@ describe("Sidebar navigation, hover-to-expand, pin/unpin, alert badge, and RBAC 
     fireEvent.pointerDown(sidebar, { pointerType: "touch" });
     fireEvent.mouseEnter(sidebar);
 
-    // Synthetic mouseEnter after touch does not lock hover open
     expect(sidebar.getAttribute("data-hovered")).toBe("false");
     expect(sidebar.getAttribute("data-collapsed")).toBe("true");
 
-    // Touch user taps the button to open/pin
     fireEvent.click(screen.getByRole("button", { name: /pin and expand sidebar/i }));
     expect(sidebar.getAttribute("data-collapsed")).toBe("false");
     expect(sidebar.getAttribute("data-pinned")).toBe("true");
 
-    // Touch user taps the button again to close
     fireEvent.click(screen.getByRole("button", { name: /unpin and collapse sidebar/i }));
     expect(sidebar.getAttribute("data-collapsed")).toBe("true");
     expect(sidebar.getAttribute("data-pinned")).toBe("false");
@@ -190,22 +183,21 @@ describe("Sidebar navigation, hover-to-expand, pin/unpin, alert badge, and RBAC 
     const nav = screen.getByRole("navigation", { name: "Dashboard navigation" });
     const overviewLink = within(nav).getByRole("link", { name: "Tổng quan" });
     const energyLink = within(nav).getByRole("link", { name: "Năng lượng" });
-    const twin3dLink = within(nav).getByRole("link", { name: "Mô hình 3D" });
+    const settingsLink = within(nav).getByRole("link", { name: "Cài đặt" });
 
     overviewLink.focus();
     fireEvent.keyDown(nav, { key: "ArrowDown" });
     expect(document.activeElement).toBe(energyLink);
 
     fireEvent.keyDown(nav, { key: "End" });
-    expect(document.activeElement).toBe(twin3dLink);
+    expect(document.activeElement).toBe(settingsLink);
 
     fireEvent.keyDown(nav, { key: "Home" });
     expect(document.activeElement).toBe(overviewLink);
 
     fireEvent.keyDown(nav, { key: "ArrowUp" });
-    expect(document.activeElement).toBe(twin3dLink);
+    expect(document.activeElement).toBe(settingsLink);
 
-    // Escape closes unpinned hover state
     fireEvent.mouseEnter(sidebar);
     expect(sidebar.getAttribute("data-hovered")).toBe("true");
     fireEvent.keyDown(nav, { key: "Escape" });
@@ -242,4 +234,3 @@ describe("Sidebar navigation, hover-to-expand, pin/unpin, alert badge, and RBAC 
     expect(useTwinStore.getState().alerts.find((alert) => alert.id === activeAlert!.id)?.status).toBe("active");
   });
 });
-

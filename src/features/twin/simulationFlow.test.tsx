@@ -127,7 +127,7 @@ describe("mock realtime dashboard flow", () => {
     fireEvent.change(screen.getByRole("combobox", { name: "Floor" }), {
       target: { value: "ics-headquarters-floor-2" },
     });
-    expect(screen.getByRole("heading", { name: "Tổng quan vận hành Floor 2" })).toBeTruthy();
+    expect(screen.getByRole("heading", { name: /Floor 2 — Ngoài phạm vi demo/i })).toBeTruthy();
 
     await act(async () => {
       await new Promise((resolve) => window.setTimeout(resolve, 3_200));

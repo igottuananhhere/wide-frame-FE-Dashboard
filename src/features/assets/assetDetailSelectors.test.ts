@@ -202,7 +202,7 @@ describe("assetDetailSelectors", () => {
     );
     expect(sampleDayMetrics.hasHistoricalData).toBe(true);
     expect(sampleDayMetrics.hasHourlySeries).toBe(true);
-    expect(sampleDayMetrics.validFloorIds).toEqual(["ics-headquarters-floor-1", "ics-headquarters-floor-2"]);
+    expect(sampleDayMetrics.validFloorIds).toEqual(["ics-headquarters-floor-1"]);
 
     const unrecordedMetrics = computeDateFilterMetrics(
       { startDate: "2026-10-01", endDate: "2026-10-01" },

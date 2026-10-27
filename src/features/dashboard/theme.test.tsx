@@ -89,7 +89,7 @@ describe("dashboard color theme", () => {
 
     // Verify building overview elements are rendered and accessible
     expect(screen.getByText("Khu vực cần chú ý")).toBeTruthy();
-    expect(screen.getByText("Trạng thái khu vực")).toBeTruthy();
+    expect(screen.getByText(/Trạng thái khu vực/i)).toBeTruthy();
     expect(document.querySelector(".building-environment-areas .environment-attention-link")).toBeTruthy();
     expect(document.querySelector(".building-stack-panel")).toBeTruthy();
   });

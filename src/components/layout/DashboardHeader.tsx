@@ -47,8 +47,15 @@ export default function DashboardHeader({
   const lastUpdatedByFloor = useTwinStore((state) => state.lastUpdatedByFloor);
   const alerts = useTwinStore((state) => state.alerts);
   const acknowledgeAlert = useTwinStore((state) => state.acknowledgeAlert);
-  const selectedFloor = locations.find((location) => location.building.id === buildingId)?.floors
-    .find((floor) => floor.id === floorId);
+  const buildingFloors = useMemo(
+    () => locations.find((location) => location.building.id === buildingId)?.floors ?? [],
+    [locations, buildingId],
+  );
+  const dataFloorIds = useMemo(
+    () => new Set(buildingFloors.filter((floor) => floor.dataAvailability === "simulation").map((floor) => floor.id)),
+    [buildingFloors],
+  );
+  const selectedFloor = buildingFloors.find((floor) => floor.id === floorId);
   const noFloorData = floorId !== ALL_BUILDING_SCOPE_ID && selectedFloor?.dataAvailability !== "simulation";
   const freshness = getDataFreshnessPresentation(floorId, automaticTelemetryRunning);
   const scopedUpdatedAt = freshness.updatedFloorId
@@ -57,8 +64,8 @@ export default function DashboardHeader({
   const canAcknowledge = canControlDevice(role);
   const scopedAlerts = useMemo(() => {
     return alerts.filter((alert) => isUnresolvedIncident(alert)
-      && (floorId === ALL_BUILDING_SCOPE_ID || alert.floorId === floorId));
-  }, [alerts, floorId]);
+      && (floorId === ALL_BUILDING_SCOPE_ID ? dataFloorIds.has(alert.floorId) : dataFloorIds.has(floorId) && alert.floorId === floorId));
+  }, [alerts, floorId, dataFloorIds]);
   const unresolvedAlertCount = scopedAlerts.length;
   const scopeLabel = floorId === ALL_BUILDING_SCOPE_ID
     ? "Toàn tòa nhà"

@@ -10,7 +10,7 @@ export const ACTIVE_FLOOR_ID: EntityId = "ics-headquarters-floor-1";
 export const DEMO_FLOOR_2_ID: EntityId = "ics-headquarters-floor-2";
 export const ALL_BUILDING_SCOPE_ID: EntityId = "ics-headquarters-all-floors";
 
-/** Floors 1 and 2 have mock telemetry. Floors 3–5 remain unconfigured. */
+/** Only Floor 1 has operational simulation telemetry in the primary demo scope. Floors 2–5 are outside the demo scope. */
 export const BUILDING_LOCATIONS: readonly BuildingLocationOption[] = [
   {
     building: {
@@ -30,7 +30,7 @@ export const BUILDING_LOCATIONS: readonly BuildingLocationOption[] = [
       buildingId: ACTIVE_BUILDING_ID,
       name: `Floor ${level}`,
       level,
-      dataAvailability: level <= 2 ? "simulation" as const : "not-configured" as const,
+      dataAvailability: level === 1 ? "simulation" as const : "not-configured" as const,
       roomIds: [],
     })),
   },

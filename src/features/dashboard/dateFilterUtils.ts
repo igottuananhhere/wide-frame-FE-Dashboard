@@ -1,7 +1,6 @@
 import {
   ACTIVE_FLOOR_ID,
   ALL_BUILDING_SCOPE_ID,
-  DEMO_FLOOR_2_ID,
 } from "../../data/mock/buildingLocations";
 
 export const STATIC_SAMPLE_DATE_ISO = "2026-10-08";
@@ -108,9 +107,6 @@ function getValidFloorsForSingleDate(dateIso: string, todayIso: string, yesterda
   ) {
     valid.push(ACTIVE_FLOOR_ID);
   }
-  if (dateIso === STATIC_SAMPLE_DATE_ISO || dateIso === STATIC_SAMPLE_PREV_DATE_ISO) {
-    valid.push(DEMO_FLOOR_2_ID);
-  }
   return valid;
 }
 
@@ -153,7 +149,7 @@ export function computeDateFilterMetrics(
         ? `ngày ${formatIsoDateVi(normalized.startDate)}`
         : `${formatIsoDateVi(normalized.startDate)} – ${formatIsoDateVi(normalized.endDate)} (${dayCount} ngày)`;
 
-  const candidateFloors = [ACTIVE_FLOOR_ID, DEMO_FLOOR_2_ID];
+  const candidateFloors = [ACTIVE_FLOOR_ID];
   let validFloorIds = candidateFloors.filter((floorId) =>
     dates.every((d) => getValidFloorsForSingleDate(d, todayIso, yesterdayIso).includes(floorId)),
   );

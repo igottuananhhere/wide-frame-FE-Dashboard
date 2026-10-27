@@ -24,8 +24,8 @@ export default function DashboardScopeBoundary() {
     <div className="dashboard-scope-page">
       {location.floorId === ALL_BUILDING_SCOPE_ID && (
         <div className="dashboard-scope-coverage" role="status">
-          <strong>Phạm vi tòa nhà: có dữ liệu {dataFloorCount}/{floorCount} tầng.</strong>
-          <span>Tổng hợp từ {dataFloors.map((floor) => floor.name).join(" + ") || "chưa có tầng"}; các tầng chưa cấu hình được loại khỏi số liệu.</span>
+          <strong>Phạm vi vận hành demo: Tầng 1 / {floorCount} tầng — Dữ liệu mô phỏng.</strong>
+          <span>Chỉ {dataFloors.map((floor) => floor.name).join(" + ") || "Tầng 1"} có dữ liệu vận hành mô phỏng ({dataFloorCount}/{floorCount} tầng); các tầng 2–5 ngoài phạm vi demo không cộng vào số liệu.</span>
         </div>
       )}
       <Outlet context={location} />

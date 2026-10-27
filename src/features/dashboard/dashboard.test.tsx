@@ -15,6 +15,7 @@ beforeEach(async () => {
     isAuthenticated: true,
   });
   useLoginTransitionStore.setState({ isTransitioning: false });
+  useTwinStore.getState().resetSimulation();
   await act(async () => {
     await router.navigate("/dashboard/overview");
   });
@@ -25,6 +26,7 @@ afterEach(() => {
   sessionStorage.clear();
   useAuthStore.setState({ user: null, role: null, isAuthenticated: false });
   useLoginTransitionStore.setState({ isTransitioning: false });
+  useTwinStore.getState().resetSimulation();
 });
 
 async function openFloor(floorId: string, title: string) {
@@ -33,41 +35,31 @@ async function openFloor(floorId: string, title: string) {
 }
 
 describe("building and floor management overview", () => {
-  it("aggregates only same-day valid floors on Building Overview today, aggregates both floors on 08/10/2026, and shows no-data state on unrecorded dates", async () => {
+  it("scopes Building Overview strictly to Floor 1 demo data and shows out-of-demo-scope state for Floors 2–5", async () => {
     render(<App />);
 
     expect(await screen.findByRole("heading", { name: "Tổng quan vận hành tòa nhà" })).toBeTruthy();
-    // On Today (18/10/2026), only Floor 1 has live simulation data (125.6 kWh); Floor 2 (08/10/2026 static sample) is not summed into today
+    expect(screen.getAllByText(/Phạm vi vận hành demo: Tầng 1 \/ 5 tầng — Dữ liệu mô phỏng/i).length).toBeGreaterThan(0);
+
+    // Only Floor 1 (125.6 kWh) is aggregated in demo scope; Floor 2 is out of demo scope
     expect(screen.getAllByText("125.6 kWh").length).toBeGreaterThan(0);
     expect(screen.queryByText("266.6 kWh")).toBeNull();
-    expect(screen.getByRole("heading", { name: "Điện năng ghi nhận hôm nay" })).toBeTruthy();
+    expect(screen.getByRole("heading", { name: "Điện năng tầng 1 ghi nhận hôm nay" })).toBeTruthy();
     expect(screen.getByText(/Trạng thái hiện tại · Không lọc theo ngày lịch sử/i)).toBeTruthy();
 
-    // Select 08/10/2026 where both Floor 1 (125.6 kWh) and Floor 2 (141.0 kWh) have sample data -> 266.6 kWh
-    fireEvent.click(screen.getByRole("button", { name: /Lọc theo ngày/i }));
-    const oct8Cell = screen.getByRole("gridcell", { name: "Ngày 08/10/2026" });
-    fireEvent.click(oct8Cell);
-    fireEvent.click(oct8Cell);
-
-    expect(screen.getByRole("heading", { name: "Điện năng ghi nhận ngày 08/10/2026" })).toBeTruthy();
-    expect(screen.getAllByText("266.6 kWh").length).toBeGreaterThan(0);
-    expect(screen.getByText(/Khu làm việc 2A \(Floor 2\) · 52\.4 kWh/i)).toBeTruthy();
-
     // Select an unrecorded historical date (01/10/2026) -> must show Chưa có dữ liệu instead of fabricating numbers
+    fireEvent.click(screen.getByRole("button", { name: /Lọc theo ngày/i }));
     const oct1Cell = screen.getByRole("gridcell", { name: "Ngày 01/10/2026" });
     fireEvent.click(oct1Cell);
     fireEvent.click(oct1Cell);
     expect(screen.getAllByText("Chưa có dữ liệu").length).toBeGreaterThan(0);
     expect(screen.getAllByText(/Chưa đủ dữ liệu để so sánh kỳ trước/i).length).toBeGreaterThan(0);
 
+    // Selecting Floor 2 opens the Out of Demo Scope state
     const floorSelector = screen.getByRole("combobox", { name: "Floor" }) as HTMLSelectElement;
     fireEvent.change(floorSelector, { target: { value: "ics-headquarters-floor-2" } });
-    expect(await screen.findByRole("heading", { name: "Tổng quan vận hành Floor 2" })).toBeTruthy();
-    expect(screen.getAllByText("141.0 kWh").length).toBeGreaterThan(0);
-    expect(screen.getAllByText("Khu làm việc 2A").length).toBeGreaterThan(0);
-    expect(screen.getByRole("heading", { name: "Sơ đồ vận hành Floor 2" })).toBeTruthy();
-    // Floor 2 footnote must never reference Floor 1's TEMP-04 or Meeting Room 02
-    expect(screen.queryByText(/TEMP-04/i)).toBeNull();
+    expect(await screen.findByRole("heading", { name: /Floor 2 — Ngoài phạm vi demo/i })).toBeTruthy();
+    expect(screen.getByText(/không cộng vào tổng vận hành toàn tòa nhà/i)).toBeTruthy();
 
     fireEvent.click(screen.getByRole("link", { name: "Tổng quan" }));
     expect(await screen.findByRole("heading", { name: "Tổng quan vận hành tòa nhà" })).toBeTruthy();
@@ -78,7 +70,7 @@ describe("building and floor management overview", () => {
     expect(viteConfig.optimizeDeps?.include).toContain("recharts");
   });
 
-  it("shows the executive health summary and mock attention queue", async () => {
+  it("shows the executive health summary and mock attention queue on Floor 1", async () => {
     render(<App />);
 
     await openFloor("ics-headquarters-floor-1", "Tổng quan vận hành Floor 1");
@@ -92,15 +84,15 @@ describe("building and floor management overview", () => {
     expect(screen.getByText("AC-03 sắp đến hạn bảo trì")).toBeTruthy();
   }, 15000);
 
-  it("shows the estimated waste KPI only in the Floor 1 overview", async () => {
+  it("shows the estimated reference excess KPI on Floor 1 overview", async () => {
     render(<App />);
     await openFloor("ics-headquarters-floor-1", "Tổng quan vận hành Floor 1");
 
-    const wasteCard = screen.getByRole("article", { name: "Điện lãng phí (ước tính)" });
+    const wasteCard = screen.getByRole("article", { name: "Điện vượt mức tham chiếu — ước tính" });
     expect(wasteCard.textContent).toContain("0.0 kWh");
     expect(wasteCard.textContent).toContain("0 VND");
     expect(wasteCard.textContent).toContain("125.6 kWh");
-    expect(screen.getByRole("link", { name: "Xem chi tiết: Điện lãng phí (ước tính)" }).getAttribute("href"))
+    expect(screen.getByRole("link", { name: "Xem chi tiết: Điện vượt mức tham chiếu — ước tính" }).getAttribute("href"))
       .toBe("/dashboard/energy?floorId=ics-headquarters-floor-1");
 
     const serverRoom = useTwinStore.getState().rooms.find((room) => room.id === "room-server-01");
@@ -112,13 +104,9 @@ describe("building and floor management overview", () => {
     expect(wasteCard.textContent).toContain("12.500 VND");
 
     const floorSelector = screen.getByRole("combobox", { name: "Floor" });
-    fireEvent.change(floorSelector, { target: { value: "ics-headquarters-floor-2" } });
-    expect(await screen.findByRole("heading", { name: "Tổng quan vận hành Floor 2" })).toBeTruthy();
-    expect(screen.queryByRole("article", { name: "Điện lãng phí (ước tính)" })).toBeNull();
-
     fireEvent.change(floorSelector, { target: { value: "ics-headquarters-all-floors" } });
     expect(await screen.findByRole("heading", { name: "Tổng quan vận hành tòa nhà" })).toBeTruthy();
-    expect(screen.queryByRole("article", { name: "Điện lãng phí (ước tính)" })).toBeNull();
+    expect(screen.queryByRole("article", { name: "Điện vượt mức tham chiếu — ước tính" })).toBeNull();
   }, 15000);
 
   it("shows energy and environment summaries, 15 kWh threshold line, and opens suspect devices panel on simulated 16.5 kWh spike", async () => {
@@ -138,16 +126,13 @@ describe("building and floor management overview", () => {
     expect(energyPanel.querySelector(".energy-chart-caption")).toBeNull();
     expect(within(energyPanel).getByText("Ngưỡng cảnh báo mô phỏng · 15 kWh/giờ")).toBeTruthy();
 
-    // Below threshold (peak 13.4 kWh <= 15 kWh): suspect devices panel must not be rendered
     expect(within(energyPanel).queryByRole("region", { name: "Thiết bị nghi vấn" })).toBeNull();
 
-    // Trigger simulated 16.5 kWh hourly spike scenario via SimulationControlPanel
     fireEvent.change(screen.getByRole("combobox", { name: "Simulation scenario" }), {
       target: { value: "hourly-energy-spike" },
     });
     fireEvent.click(screen.getByRole("button", { name: "SIMULATE EVENT" }));
 
-    // Exceeded summary and Suspect Devices panel must now appear for 09:00–10:00 (16.5 kWh, +1.5 kWh)
     const suspectPanel = await within(energyPanel).findByRole("region", { name: "Thiết bị nghi vấn" });
     expect(within(energyPanel).getAllByText(/09:00–10:00/).length).toBeGreaterThan(0);
     expect(within(energyPanel).getAllByText(/16\.5 kWh/).length).toBeGreaterThan(0);
@@ -172,7 +157,7 @@ describe("building and floor management overview", () => {
     expect(within(environmentPanel).getByText("19 µg/m³")).toBeTruthy();
   });
 
-  it("shows asset exceptions priority board across Floor 1 and Floor 2 and links the 3D action to the external twin", async () => {
+  it("shows asset exceptions priority board on Floor 1 and hides the 3D action from the main demo flow", async () => {
     render(<App />);
 
     await openFloor("ics-headquarters-floor-1", "Tổng quan vận hành Floor 1");
@@ -191,18 +176,7 @@ describe("building and floor management overview", () => {
     expect(within(floor1Table).getByText("UT-01")).toBeTruthy();
     fireEvent.click(within(floor1AssetSection).getByRole("button", { name: "Chế độ Thẻ" }));
 
-    const digitalTwinLink = screen.getByRole("link", { name: /mở digital twin 3d/i });
-    expect(digitalTwinLink.getAttribute("href")).toBe("https://warm-dodol-8b85a2.netlify.app/index.html");
-    expect(digitalTwinLink.getAttribute("target")).toBe("_blank");
-    expect(digitalTwinLink.getAttribute("rel")).toBe("noopener noreferrer");
-
-    await openFloor("ics-headquarters-floor-2", "Tổng quan vận hành Floor 2");
-    const floor2AssetSection = screen.getByRole("region", { name: "Tài sản cần xử lý" });
-    expect(within(floor2AssetSection).getByRole("region", { name: /ưu tiên cao/i })).toBeTruthy();
-    expect(within(floor2AssetSection).getByRole("region", { name: /ưu tiên trung bình/i })).toBeTruthy();
-    expect(within(floor2AssetSection).getByRole("region", { name: /ưu tiên thấp/i })).toBeTruthy();
-    expect(within(floor2AssetSection).getByText("UT-02")).toBeTruthy();
-    expect(within(floor2AssetSection).getByText("WS-22")).toBeTruthy();
+    expect(screen.queryByRole("link", { name: /mở digital twin 3d/i })).toBeNull();
   });
 
   it("orders Floor 1 KPI cards left-to-right and synchronizes room/incident/asset counts", async () => {
@@ -217,7 +191,7 @@ describe("building and floor management overview", () => {
       "Sự cố chưa giải quyết",
       "Môi trường",
       "Điện năng hôm nay",
-      "Điện lãng phí (ước tính)",
+      "Điện vượt mức tham chiếu — ước tính",
     ]);
 
     const energyKpi = within(kpiSection).getByRole("article", { name: "Điện năng hôm nay" });
@@ -233,4 +207,3 @@ describe("building and floor management overview", () => {
     expect(screen.getAllByText(/Cảm biến nhánh \(Sensor\) mất kết nối cục bộ/i).length).toBeGreaterThan(0);
   }, 15000);
 });
-

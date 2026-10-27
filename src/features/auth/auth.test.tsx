@@ -88,7 +88,7 @@ describe("direct dashboard access and header role switching (Demo Mode)", () => 
     expect(await waitForOverview()).toBeTruthy();
     expect(screen.getAllByText("ICS Platform Administrator").length).toBeGreaterThan(0);
     expect(screen.getByText("Admin", { exact: true })).toBeTruthy();
-    expect(document.querySelector(".dashboard-header .live-indicator")).toBeNull();
+    expect(document.querySelector(".dashboard-header .live-indicator")).toBeTruthy();
     expect(document.querySelector(".overview-heading-actions .building-floor-selector")).toBeTruthy();
     expect(document.querySelector(".dashboard-header-live .building-floor-selector")).toBeNull();
     expect(document.querySelector(".dashboard-header-location")).toBeNull();
@@ -99,9 +99,10 @@ describe("direct dashboard access and header role switching (Demo Mode)", () => 
       .toBe("ics-headquarters-all-floors");
     expect(screen.getByRole("navigation", { name: "Dashboard navigation" })
       .querySelector('a[aria-current="page"]')?.textContent).toContain("Tổng quan");
-    for (const label of ["Năng lượng", "Môi trường", "Thiết bị", "Sự cố", "Tài sản & bảo trì", "Mô hình 3D"]) {
+    for (const label of ["Năng lượng", "Môi trường", "Thiết bị", "Sự cố", "Tài sản & bảo trì"]) {
       expect(screen.getByRole("link", { name: label })).toBeTruthy();
     }
+    expect(screen.queryByRole("link", { name: "Mô hình 3D" })).toBeNull();
 
     const sidebar = screen.getByLabelText("Application sidebar");
     expect(sidebar.className).toContain("dashboard-sidebar--collapsed");
@@ -134,18 +135,17 @@ describe("direct dashboard access and header role switching (Demo Mode)", () => 
     expect(screen.getAllByText("ICS Platform Administrator").length).toBeGreaterThan(0);
   }, 15000);
 
-  it("keeps the Digital Twin 3D route as a placeholder inside the dashboard shell", async () => {
+  it("keeps the Digital Twin 3D route as a placeholder inside the dashboard shell while hiding it from the main sidebar", async () => {
     useAuthStore.setState({
       user: { username: "viewer", displayName: "ICS Platform Viewer", role: "Viewer" },
       role: "Viewer",
       isAuthenticated: true,
     });
-    await openRoute("/dashboard/overview");
+    await openRoute("/dashboard/digital-twin");
 
-    fireEvent.click(screen.getByRole("link", { name: "Mô hình 3D" }));
     expect(await screen.findByRole("heading", { name: /mô hình 3d/i })).toBeTruthy();
     expect(screen.getByText(/module planned for a later phase/i)).toBeTruthy();
-    expect(screen.getByRole("link", { name: "Mô hình 3D" }).getAttribute("aria-current")).toBe("page");
+    expect(screen.queryByRole("link", { name: "Mô hình 3D" })).toBeNull();
     expect(screen.getByRole("banner")).toBeTruthy();
   }, 15000);
 

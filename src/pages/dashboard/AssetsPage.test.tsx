@@ -113,17 +113,17 @@ describe("AssetsPage (Tài sản & bảo trì)", () => {
   it("filters and searches inside the Assets tab", async () => {
     await openAssetsPage();
 
-    // Search by text "AC-07"
+    // Search by text "AHU-01"
     const searchInput = screen.getByRole("textbox", { name: "Tìm kiếm tài sản" });
-    fireEvent.change(searchInput, { target: { value: "AC-07" } });
+    fireEvent.change(searchInput, { target: { value: "AHU-01" } });
 
-    expect(screen.getByRole("heading", { name: "AC-07" })).toBeTruthy();
+    expect(screen.getByRole("heading", { name: "AHU-01" })).toBeTruthy();
     expect(screen.queryByRole("heading", { name: "AC-03" })).toBeNull();
 
     // Clear search
     fireEvent.click(screen.getByRole("button", { name: "Xóa từ khóa tìm kiếm" }));
     expect(screen.getByRole("heading", { name: "AC-03" })).toBeTruthy();
-    expect(screen.getByRole("heading", { name: "AC-07" })).toBeTruthy();
+    expect(screen.getByRole("heading", { name: "AHU-01" })).toBeTruthy();
   });
 
   it("opens AssetDetailDrawer when clicking 'Xem chi tiết'", async () => {
@@ -159,13 +159,10 @@ describe("AssetsPage (Tài sản & bảo trì)", () => {
     fireEvent.click(screen.getByRole("tab", { name: /kế hoạch bảo trì/i }));
 
     const todayIso = getLocalTodayIso();
-    const expectedCoilStatus = computeCalendarMaintenanceStatus("2026-03-25", todayIso);
     const expectedFiltersStatus = computeCalendarMaintenanceStatus("2026-07-15", todayIso);
     const expectedSafetyStatus = computeCalendarMaintenanceStatus("2026-11-20", todayIso);
 
-    // Overdue coil cleaning plan for AC-07 is "Đã lên lịch" (progress) but "Quá hạn" (due status)
-    expect(screen.getByText("Vệ sinh khử khuẩn dàn lạnh & máng nước ngưng")).toBeTruthy();
-    expect(screen.getByText(expectedCoilStatus.remainingLabel)).toBeTruthy();
+    expect(screen.getByText("Vệ sinh màng lọc bụi & kiểm tra môi chất lạnh (Gas)")).toBeTruthy();
     expect(screen.getByText(expectedFiltersStatus.remainingLabel)).toBeTruthy();
     expect(screen.getByText(expectedSafetyStatus.remainingLabel)).toBeTruthy();
     expect(screen.getAllByText("Đã lên lịch").length).toBeGreaterThan(0);

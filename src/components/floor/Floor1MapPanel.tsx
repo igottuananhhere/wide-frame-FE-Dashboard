@@ -10,6 +10,7 @@ import {
 import { floor1SchematicGeometry } from "../../data/mock/floor1.mock";
 import { floor2SchematicGeometry } from "../../data/mock/floor2.mock";
 import { floor1EnvironmentThresholds } from "../../data/mock/floor1Environment.mock";
+import { calculateRoomPowerKw } from "../../data/mock/roomControls.mock";
 import { buildAreaEnvironmentReadings } from "../../features/environment/environmentSelectors";
 import type { FloorCameraMarker, FloorRoomSnapshot } from "../../features/floor/types";
 import { useTwinStore } from "../../features/twin/twinStore";
@@ -78,6 +79,9 @@ export default function Floor1MapPanel({
   const allRooms = useTwinStore((state) => state.rooms);
   const allDevices = useTwinStore((state) => state.devices);
   const allAirQuality = useTwinStore((state) => state.airQualityByRoom);
+  const lightStates = useTwinStore((state) => state.lightStates);
+  const acStates = useTwinStore((state) => state.acStates);
+  const serverCoolingBoostActive = useTwinStore((state) => state.serverCoolingBoostActive);
 
   const isFloor2 = floorId === DEMO_FLOOR_2_ID;
   const schematicGeometry = isFloor2 ? floor2SchematicGeometry : floor1SchematicGeometry;
@@ -424,6 +428,7 @@ export default function Floor1MapPanel({
                 {hoveredEnv ? <> <i /> CO₂ {hoveredEnv.co2Ppm.toLocaleString("en-US")} ppm</> : null}
               </span>
               <span>
+                {`${calculateRoomPowerKw(hoveredRoom.id, lightStates, acStates, devices, serverCoolingBoostActive).toFixed(2)} kW tức thời`} ·{" "}
                 {hasHistoricalData
                   ? `${hoveredRoom.energyConsumption.toFixed(1)} kWh ${isStaticSample || isFloor2 ? `(${sampleDateLabel})` : "hôm nay"}`
                   : `Điện năng: Chưa có dữ liệu (${sampleDateLabel})`} · {hoveredRoom.onlineDeviceCount}/{hoveredRoom.deviceCount} online
@@ -508,7 +513,7 @@ export default function Floor1MapPanel({
                     <div className="floor-map-directory-metrics">
                       <span>{`${room.temperature.toFixed(1)}°C · ${room.humidity}%`}</span>
                       <span>{envReading ? `CO₂ ${envReading.co2Ppm.toLocaleString("en-US")} ppm` : "CO₂ —"}</span>
-                      <span>{hasHistoricalData ? `${room.energyConsumption.toFixed(1)} kWh` : "Chưa có dữ liệu"}</span>
+                      <span>{`${calculateRoomPowerKw(room.id, lightStates, acStates, devices, serverCoolingBoostActive).toFixed(2)} kW · ${hasHistoricalData ? `${room.energyConsumption.toFixed(1)} kWh` : "—"}`}</span>
                       <span>
                         {`${room.onlineDeviceCount}/${room.deviceCount} online${roomCameraCount > 0 ? ` · ${roomCameraCount} CAM` : ""}`}
                       </span>

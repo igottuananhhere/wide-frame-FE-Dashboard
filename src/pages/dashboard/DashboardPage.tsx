@@ -211,7 +211,7 @@ function FloorOverviewPage({ floorId, floorName }: { floorId: string; floorName:
 
     return [...summary, {
       id: "energy-waste",
-      label: "Điện lãng phí (ước tính)",
+      label: "Điện vượt mức tham chiếu — ước tính",
       value: hasReliableExcess ? `${waste.excessKwh.toFixed(1)} kWh` : "Chưa đủ dữ liệu",
       icon: "energy" as const,
       details: !hasHistoricalData
@@ -267,14 +267,6 @@ function FloorOverviewPage({ floorId, floorName }: { floorId: string; floorName:
             todayIso={todayIso}
             onRangeChange={setSelectedRange}
           />
-          <a
-            className="digital-twin-action"
-            href="https://warm-dodol-8b85a2.netlify.app/index.html"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Mở Digital Twin 3D <ArrowUpRight aria-hidden="true" size={16} />
-          </a>
           <BuildingFloorSelector
             buildingId={location.buildingId}
             floorId={location.floorId}

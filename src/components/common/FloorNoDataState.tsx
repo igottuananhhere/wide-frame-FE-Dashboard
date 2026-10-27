@@ -1,5 +1,6 @@
 import { ArrowLeft, Layers3 } from "lucide-react";
 import { useOutletContext } from "react-router-dom";
+import { ACTIVE_FLOOR_ID } from "../../data/mock/buildingLocations";
 import type { DashboardLocationContextValue } from "../../features/building/types";
 import BuildingFloorSelector from "../layout/BuildingFloorSelector";
 
@@ -30,12 +31,25 @@ export default function FloorNoDataState({ floorName, onBackToBuilding }: FloorN
       )}
       <article className="floor-no-data-card">
         <span className="floor-no-data-icon" aria-hidden="true"><Layers3 size={24} /></span>
-        <p className="section-eyebrow">ICS HEADQUARTERS / FLOOR STATUS</p>
-        <h1 id="floor-no-data-title">{floorName} chưa có dữ liệu</h1>
-        <p>Tầng này chưa được cấu hình nguồn dữ liệu, nên chưa có chỉ số vận hành để hiển thị hoặc cộng vào tổng tòa nhà.</p>
-        <button className="floor-no-data-back" onClick={onBackToBuilding} type="button">
-          <ArrowLeft aria-hidden="true" size={15} /> Về tổng quan tòa nhà
-        </button>
+        <p className="section-eyebrow">ICS HEADQUARTERS / DEMO SCOPE</p>
+        <h1 id="floor-no-data-title">{floorName} — Ngoài phạm vi demo</h1>
+        <p>
+          Phạm vi vận hành demo hiện tại chỉ bao gồm <strong>Tầng 1 / 5 tầng (Dữ liệu mô phỏng)</strong>. {floorName} nằm ngoài phạm vi demo nên không hiển thị số liệu trực tiếp và không cộng vào tổng vận hành toàn tòa nhà.
+        </p>
+        <div style={{ display: "flex", gap: "0.75rem", flexWrap: "wrap", justifyContent: "center" }}>
+          <button className="floor-no-data-back" onClick={onBackToBuilding} type="button">
+            <ArrowLeft aria-hidden="true" size={15} /> Về tổng quan tòa nhà
+          </button>
+          {location && (
+            <button
+              className="floor-no-data-back"
+              onClick={() => location.onLocationChange(location.buildingId, ACTIVE_FLOOR_ID)}
+              type="button"
+            >
+              Mở Dashboard Tầng 1 (Phạm vi demo)
+            </button>
+          )}
+        </div>
       </article>
     </section>
   );

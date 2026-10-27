@@ -1,7 +1,6 @@
 import {
   AlertTriangle,
   BarChart3,
-  Box,
   Cpu,
   LayoutDashboard,
   Package,
@@ -137,21 +136,6 @@ export const NAVIGATION_GROUPS: readonly NavigationGroupConfig[] = [
       },
     ],
   },
-  {
-    id: "digital-twin-group",
-    title: "DIGITAL TWIN",
-    items: [
-      {
-        id: "digital-twin-3d",
-        label: "Mô hình 3D",
-        englishLabel: "Digital Twin 3D",
-        to: "/dashboard/digital-twin",
-        icon: Box,
-        preserveFloorScope: true,
-        requiredPermission: "canViewDashboard",
-      },
-    ],
-  },
 ];
 
 export function getNavigationGroupsForRole(
@@ -165,4 +149,3 @@ export function getNavigationGroupsForRole(
     ),
   })).filter((group) => group.items.length > 0);
 }
-

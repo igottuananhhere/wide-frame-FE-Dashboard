@@ -209,31 +209,27 @@ export function buildUnifiedEnergyWorkspaceModel(
   const energyChartPoints = energyHistoryByFloor[energyChartFloorId] ?? [];
   const lastChartHour = energyChartPoints.at(-1)?.time ?? "17:00";
 
-  const lastUpdatedTimeLabel = isBuildingScope
-    ? `Floor 1: ${floor1DateVi} · ${floor1TimeClock} (khung 08:00–${lastChartHour}) | Floor 2: mẫu tĩnh ${floor2DateVi}`
-    : includesFloor1
-      ? `${floor1DateVi} · ${floor1TimeClock} (khung 08:00–${lastChartHour})`
-      : `${floor2DateVi} · 17:00 (mẫu tĩnh 08:00–${lastChartHour})`;
+  const lastUpdatedTimeLabel = includesFloor1
+    ? `${floor1DateVi} · ${floor1TimeClock} (khung 08:00–${lastChartHour})`
+    : `${floor2DateVi} · 17:00 (mẫu tĩnh 08:00–${lastChartHour})`;
 
   const isPaused = includesFloor1 && !automaticTelemetryRunning;
-  const simulationStatusLabel = isBuildingScope
-    ? `Floor 1 ${automaticTelemetryRunning ? "LIVE (đang chạy mô phỏng)" : "PAUSED (mô phỏng tạm dừng)"} · Floor 2 mẫu tĩnh (${floor2DateVi})`
-    : includesFloor1
-      ? automaticTelemetryRunning
-        ? "Đang chạy mô phỏng trực tiếp (LIVE)"
-        : "Mô phỏng đang tạm dừng (PAUSED)"
-      : `Dữ liệu mẫu tĩnh ngày ${floor2DateVi} · không cập nhật trực tiếp`;
+  const simulationStatusLabel = includesFloor1
+    ? automaticTelemetryRunning
+      ? "Mô phỏng đang chạy"
+      : "Mô phỏng tạm dừng"
+    : `Dữ liệu mẫu ngày ${floor2DateVi}`;
 
   const coverageBadgeLabel = isBuildingScope
-    ? `Tổng hợp tầng 1 và tầng 2 · ${configuredFloorCount}/${totalBuildingFloors} tầng có dữ liệu`
+    ? `Phạm vi vận hành demo: Tầng 1 / ${totalBuildingFloors} tầng — Dữ liệu mô phỏng`
     : `${scopeLabel} · 1/${totalBuildingFloors} tầng tòa nhà`;
 
   const coverageDetailLabel = isBuildingScope
-    ? `Chỉ cộng các tầng đã có dữ liệu (Floor 1 + Floor 2). Các tầng chưa cấu hình (Floor 3, Floor 4, Floor 5) hiển thị "Chưa có dữ liệu", không tính là 0 kWh.`
+    ? `Phạm vi vận hành demo: Tầng 1 / ${totalBuildingFloors} tầng — Dữ liệu mô phỏng. Các tầng 2–5 hiển thị "Ngoài phạm vi demo" và không cộng vào số liệu vận hành.`
     : `Đang lọc riêng ${scopeLabel}. Mọi chỉ số KPI, biểu đồ, cảnh báo, khu vực, thiết bị và dự báo bên dưới đều thuộc phạm vi ${scopeLabel}.`;
 
   const energyChartScopeNote = isBuildingScope
-    ? `Floor 2 · dữ liệu mẫu tĩnh ngày ${floor2DateVi} không gộp vào xu hướng hôm nay`
+    ? `Phạm vi vận hành demo: Tầng 1 / ${totalBuildingFloors} tầng`
     : undefined;
 
   // Build enriched area rows & device rows
@@ -336,8 +332,8 @@ export function buildUnifiedEnergyWorkspaceModel(
         floorName: floor.name,
         floorNumber: floor.level,
         hasData: false,
-        dataSourceLabel: "Chưa kết nối đồng hồ / cảm biến",
-        readingDateLabel: "Chưa có dữ liệu",
+        dataSourceLabel: "Ngoài phạm vi demo",
+        readingDateLabel: "Ngoài phạm vi demo",
         energyKwh: null,
         yesterdayKwh: null,
         sharePercent: null,
@@ -370,9 +366,9 @@ export function buildUnifiedEnergyWorkspaceModel(
       dataSourceLabel:
         floor.id === ACTIVE_FLOOR_ID
           ? automaticTelemetryRunning
-            ? "Mô phỏng trực tiếp (LIVE)"
-            : "Mô phỏng tạm dừng (PAUSED)"
-          : "Dữ liệu mẫu tĩnh",
+            ? "Mô phỏng đang chạy"
+            : "Mô phỏng tạm dừng"
+          : "Dữ liệu mẫu",
       readingDateLabel:
         floor.id === ACTIVE_FLOOR_ID
           ? `${floor1DateVi} · 08:00–${lastChartHour}`
@@ -540,7 +536,7 @@ export function buildUnifiedEnergyWorkspaceModel(
   const wasteStatus: EnergyWasteStatusModel = isSingleFloor1
     ? {
         isAvailable: true,
-        cardLabel: "Điện lãng phí (ước tính)",
+        cardLabel: "Điện vượt mức tham chiếu — ước tính",
         estimate: calculateEnergyWaste(
           energyTodayKwh,
           floor1MonthlyEnergyForecast.baselineTodayKwh,
@@ -554,7 +550,7 @@ export function buildUnifiedEnergyWorkspaceModel(
       }
     : {
         isAvailable: false,
-        cardLabel: "Điện lãng phí ước tính",
+        cardLabel: "Điện vượt mức tham chiếu — ước tính",
         estimate: null,
         rateVndPerKwh: floor1MonthlyEnergyForecast.averageRateVndPerKwh,
         baselineKwh: null,

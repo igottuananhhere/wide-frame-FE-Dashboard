@@ -49,10 +49,15 @@ export default function DashboardLayout() {
   const floorId = requestedFloorId && buildingFloors.some((floor) => floor.id === requestedFloorId)
     ? requestedFloorId
     : ALL_BUILDING_SCOPE_ID;
+  const dataFloorIds = new Set(
+    buildingFloors.filter((floor) => floor.dataAvailability === "simulation").map((floor) => floor.id),
+  );
   const selectedFloor = buildingFloors.find((floor) => floor.id === floorId);
   const noFloorData = floorId !== ALL_BUILDING_SCOPE_ID && selectedFloor?.dataAvailability !== "simulation";
   const scopedUnresolvedAlerts = alerts.filter(
-    (alert) => isUnresolvedIncident(alert) && (floorId === ALL_BUILDING_SCOPE_ID || alert.floorId === floorId),
+    (alert) =>
+      isUnresolvedIncident(alert)
+      && (floorId === ALL_BUILDING_SCOPE_ID ? dataFloorIds.has(alert.floorId) : dataFloorIds.has(floorId) && alert.floorId === floorId),
   );
   const unresolvedAlertCount = scopedUnresolvedAlerts.length;
   const hasCriticalAlerts = scopedUnresolvedAlerts.some(
